@@ -295,7 +295,7 @@
 
       <div class="panel">
         <h2>Enregistrer un contenant</h2>
-        <p class="sub">Scanne l'identifiant avec la douchette (validation automatique) ou saisis-le manuellement.</p>
+        <p class="sub">Scanne l'identifiant avec la douchette (validation automatique), saisis-le manuellement, ou utilise le numéro suggéré ci-dessous.</p>
         <div class="form-row">
           <div>
             <label class="small" for="new-id">Identifiant unique</label>
@@ -306,9 +306,27 @@
             <select id="new-type"></select>
           </div>
           <div style="flex:0;">
+            <button class="btn btn-ghost" type="button" onclick="appliquerSuggestionId()">Suggérer un numéro</button>
+          </div>
+          <div style="flex:0;">
             <button class="btn btn-primary" onclick="creerContenant()">Ajouter</button>
           </div>
         </div>
+        <p class="sub" id="id-suggestion-info" style="margin-top:10px; margin-bottom:0;"></p>
+
+        <details style="margin-top:12px;">
+          <summary style="cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink-soft);">Réglages de numérotation automatique</summary>
+          <div class="form-row" style="margin-top:12px;">
+            <div>
+              <label class="small" for="param-numero-depart">Numéro de départ</label>
+              <input type="text" id="param-numero-depart" class="id-input" placeholder="052080000001000000">
+            </div>
+            <div style="flex:0;">
+              <button class="btn btn-ghost btn-sm" onclick="enregistrerNumeroDepart()">Enregistrer</button>
+            </div>
+          </div>
+          <p class="sub" style="margin:8px 0 0;">Ce numéro sert de point de départ uniquement si aucun contenant n'existe encore. Ensuite, la suggestion reprend automatiquement le plus grand identifiant existant + 1.</p>
+        </details>
       </div>
 
       <div class="panel">
@@ -475,7 +493,8 @@ const db = firebase.firestore();
 let TYPES = {};        // { lettre: {lettre, longueur, largeur, hauteur, description} }
 let EMPLACEMENTS = {}; // { id: {id, nom, description} }
 let CONTENANTS = {};   // { identifiant: {...} }
-let unsubTypes = null, unsubEmp = null, unsubCont = null;
+let PARAMETRES = { numeroDepart: '' }; // réglages de numérotation automatique
+let unsubTypes = null, unsubEmp = null, unsubCont = null, unsubParams = null;
 
 /* ===================================================================
    AUTHENTIFICATION
