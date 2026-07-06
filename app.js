@@ -252,24 +252,41 @@ function renderSelectEmplacements(){
    =================================================================== */
 
 /* --- Génération d'un identifiant unique via compteur transactionnel ---
-   Le doc "compteurs/contenants" stocke le dernier numéro attribué.
+   Le doc "compteurs/contenants" stocke le dernier numéro attribué, sous
+   forme de CHAÎNE (et non de Number) : ce numéro fait 18 chiffres, ce qui
+   dépasse largement Number.MAX_SAFE_INTEGER. Le stocker comme nombre
+   ferait perdre de la précision et finirait par créer des doublons.
    La transaction garantit qu'aucun numéro ne peut être délivré deux fois,
    même en cas de générations simultanées depuis plusieurs postes. */
+const IDENTIFIANT_INITIAL = "052030000000000000"; // premier numéro généré
+const IDENTIFIANT_LONGUEUR = IDENTIFIANT_INITIAL.length; // 18 chiffres
+
+// Incrémente de 1 une chaîne de chiffres, comme une addition posée à la main.
+function incrementerIdentifiant(str){
+  const chiffres = str.split('');
+  let i = chiffres.length - 1;
+  while(i >= 0){
+    if(chiffres[i] === '9'){ chiffres[i] = '0'; i--; }
+    else { chiffres[i] = String(Number(chiffres[i]) + 1); return chiffres.join(''); }
+  }
+  // Cas extrême (débordement au-delà de 18 chiffres, ne devrait jamais arriver) :
+  return '1' + chiffres.join('');
+}
+
 function genererIdentifiant(){
   const idInput = document.getElementById('new-id');
   const compteurRef = db.collection('compteurs').doc('contenants');
 
   db.runTransaction(tx=>{
     return tx.get(compteurRef).then(doc=>{
-      const dernier = doc.exists ? (doc.data().dernier || 0) : 0;
-      const suivant = dernier + 1;
+      const dernier = doc.exists ? doc.data().dernier : null;
+      const suivant = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
       tx.set(compteurRef, {dernier: suivant}, {merge:true});
       return suivant;
     });
   }).then(suivant=>{
-    const identifiant = 'CT-' + String(suivant).padStart(6, '0'); // adapte le préfixe/format si besoin
-    idInput.value = identifiant;
-    imprimerCodeBarre(identifiant);
+    idInput.value = suivant;
+    imprimerCodeBarre(suivant);
     idInput.focus();
   }).catch(err=> toast("Erreur de génération : " + err.message, 'err'));
 }
