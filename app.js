@@ -479,15 +479,34 @@ function creerContenant(){
 
   const now = firebase.firestore.Timestamp.now();
   const ref = db.collection('contenants').doc(identifiant);
+  const compteurRef = db.collection('compteurs').doc('contenants');
 
+  // La mise à jour du compteur se fait DANS la même transaction que la
+  // création du contenant : c'est le seul moyen de garantir que le
+  // compteur avance exactement en même temps que les contenants sont
+  // réellement créés (et pas à chaque "Générer", qui n'est qu'un aperçu).
+  // Toutes les lectures Firestore doivent précéder les écritures dans une
+  // transaction, d'où le Promise.all sur les deux lectures avant les tx.set.
   db.runTransaction(tx=>{
-    return tx.get(ref).then(doc=>{
-      if(doc.exists) throw new Error('DUPLICATE');
+    return Promise.all([tx.get(ref), tx.get(compteurRef)]).then(([contDoc, compteurDoc])=>{
+      if(contDoc.exists) throw new Error('DUPLICATE');
+
       tx.set(ref, {
         identifiant, typeLettre, statut: 'en_service',
         emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null,
         historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant'}]
       });
+
+      // On n'avance le compteur que si l'identifiant suit le format auto
+      // (18 chiffres) ET qu'il est supérieur au dernier connu. Cette
+      // dernière condition évite de faire reculer le compteur si un
+      // identifiant plus ancien (scanné manuellement) est saisi après coup.
+      if(estIdentifiantAuto(identifiant)){
+        const dernier = compteurDoc.exists ? compteurDoc.data().dernier : null;
+        if(!dernier || identifiant > dernier){
+          tx.set(compteurRef, {dernier: identifiant});
+        }
+      }
     });
   }).then(()=>{
     toast("Contenant " + identifiant + " enregistré.", 'ok');
