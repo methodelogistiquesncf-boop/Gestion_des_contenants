@@ -84,6 +84,29 @@ body{
 .btn-sm{padding:6px 10px; font-size:12.5px; border-radius:6px;}
 #login-error{color:var(--danger); font-size:13px; margin-top:10px; min-height:16px;}
 
+/* ---------- Champ mot de passe avec œil de visibilité ---------- */
+.password-field{
+  position:relative;
+}
+.password-field input{
+  width:100%; padding-right:42px;
+}
+.eye-btn{
+  position:absolute; right:5px; top:50%; transform:translateY(-50%);
+  background:none; border:none; cursor:pointer; color:var(--ink-soft);
+  display:flex; align-items:center; justify-content:center;
+  padding:6px; border-radius:6px; line-height:0;
+}
+.eye-btn:hover{ color:var(--ink); background:#f1efe8; }
+.eye-btn svg{ display:block; }
+
+/* ---------- Lien "mot de passe oublié" ---------- */
+.forgot-link{ text-align:right; margin-top:10px; font-size:12.5px; }
+.forgot-link a{ color:var(--teal); text-decoration:none; cursor:pointer; }
+.forgot-link a:hover{ text-decoration:underline; }
+
+.field-msg{ font-size:12.5px; margin-top:8px; min-height:16px; }
+
 /* ---------- App shell ---------- */
 #app{display:none; min-height:100vh; flex-direction:column;}
 header.topbar{
@@ -153,7 +176,7 @@ tr.clickable:hover{background:#faf8f3;}
 .badge-info{background:var(--info-bg); color:var(--info);}
 
 .toolbar{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center;}
-select, input[type=text], input[type=number]{
+select, input[type=text], input[type=number], input[type=password]{
   padding:9px 10px; border:1px solid var(--line); border-radius:8px;
   font-family:var(--sans); font-size:13.5px; background:#fdfcfa; color:var(--ink);
 }
