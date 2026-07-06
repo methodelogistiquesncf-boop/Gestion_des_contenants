@@ -832,3 +832,101 @@ function closeModal(){
 document.getElementById('modal-historique').addEventListener('click', e=>{
   if(e.target.id === 'modal-historique') closeModal();
 });
+/* ===================================================================
+   BOOK PDF DES TYPES DE CONTENANTS
+   =================================================================== */
+async function genererBookPDF(){
+  const lettres = Object.keys(TYPES).sort();
+  if(lettres.length === 0){ toast("Aucun type à exporter.", 'err'); return; }
+
+  toast("Génération du book PDF…", '');
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = 210, pageH = 297;
+  const oak = [138, 90, 52];
+  const ink = [38, 35, 30];
+  const inkSoft = [107, 98, 85];
+
+  // ---- Page de couverture ----
+  doc.setFillColor(...oak);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(30);
+  doc.text('Catalogue des contenants', pageW / 2, 130, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(13);
+  doc.text(lettres.length + ' type(s) référencé(s)', pageW / 2, 145, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), pageW / 2, 155, { align: 'center' });
+
+  // ---- Une page par type ----
+  lettres.forEach((lettre, index) => {
+    const t = TYPES[lettre];
+    doc.addPage();
+
+    // Bandeau d'en-tête
+    doc.setFillColor(...oak);
+    doc.rect(0, 0, pageW, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('Type ' + t.lettre, 15, 17);
+
+    let y = 40;
+    doc.setTextColor(...ink);
+
+    // Dimensions
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Dimensions', 15, y);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('Longueur : ' + (t.longueur || 0) + ' mm', 15, y); y += 6;
+    doc.text('Largeur : ' + (t.largeur || 0) + ' mm', 15, y); y += 6;
+    doc.text('Hauteur : ' + (t.hauteur || 0) + ' mm', 15, y); y += 10;
+
+    // Description
+    if (t.description) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Description', 15, y);
+      y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const lines = doc.splitTextToSize(t.description, pageW - 30);
+      doc.text(lines, 15, y);
+      y += lines.length * 5 + 8;
+    }
+
+    // Photo
+    if (t.photo) {
+      try {
+        const imgProps = doc.getImageProperties(t.photo);
+        const maxW = pageW - 30;
+        const maxH = pageH - y - 20;
+        let w = maxW, h = (imgProps.height / imgProps.width) * w;
+        if (h > maxH) { h = maxH; w = (imgProps.width / imgProps.height) * h; }
+        const x = (pageW - w) / 2;
+        doc.addImage(t.photo, 'JPEG', x, y, w, h);
+      } catch (e) {
+        console.error('Erreur image type ' + lettre, e);
+      }
+    } else {
+      doc.setFontSize(10);
+      doc.setTextColor(...inkSoft);
+      doc.text('(Aucune photo disponible pour ce type)', 15, y);
+    }
+
+    // Pied de page
+    doc.setFontSize(9);
+    doc.setTextColor(...inkSoft);
+    doc.text('Type ' + t.lettre, 15, pageH - 10);
+    doc.text((index + 1) + ' / ' + lettres.length, pageW - 15, pageH - 10, { align: 'right' });
+  });
+
+  doc.save('catalogue-contenants.pdf');
+  toast("Book PDF généré.", 'ok');
+}
