@@ -250,25 +250,63 @@ function renderSelectEmplacements(){
 /* ===================================================================
    CONTENANTS
    =================================================================== */
+
+/* --- Génération d'un identifiant unique via compteur transactionnel ---
+   Le doc "compteurs/contenants" stocke le dernier numéro attribué.
+   La transaction garantit qu'aucun numéro ne peut être délivré deux fois,
+   même en cas de générations simultanées depuis plusieurs postes. */
+function genererIdentifiant(){
+  const idInput = document.getElementById('new-id');
+  const compteurRef = db.collection('compteurs').doc('contenants');
+
+  db.runTransaction(tx=>{
+    return tx.get(compteurRef).then(doc=>{
+      const dernier = doc.exists ? (doc.data().dernier || 0) : 0;
+      const suivant = dernier + 1;
+      tx.set(compteurRef, {dernier: suivant}, {merge:true});
+      return suivant;
+    });
+  }).then(suivant=>{
+    const identifiant = 'CT-' + String(suivant).padStart(6, '0'); // adapte le préfixe/format si besoin
+    idInput.value = identifiant;
+    imprimerCodeBarre(identifiant);
+    idInput.focus();
+  }).catch(err=> toast("Erreur de génération : " + err.message, 'err'));
+}
+
+/* --- Création d'un contenant avec vérification anti-doublon côté serveur ---
+   On utilise une transaction plutôt qu'un simple .set() : elle relit le
+   document au moment exact de l'écriture, donc même si le cache local
+   (CONTENANTS) n'est pas encore à jour ou si deux utilisateurs créent
+   le même identifiant en même temps, un seul des deux réussira. */
 function creerContenant(){
   const idInput = document.getElementById('new-id');
   const identifiant = idInput.value.trim();
   const typeLettre = document.getElementById('new-type').value;
 
-  if(!identifiant){ toast("Scanne ou saisis un identifiant.", 'err'); return; }
+  if(!identifiant){ toast("Scanne, saisis ou génère un identifiant.", 'err'); return; }
   if(!typeLettre){ toast("Sélectionne un type de contenant.", 'err'); return; }
-  if(CONTENANTS[identifiant]){ toast("Cet identifiant est déjà enregistré.", 'err'); return; }
 
   const now = firebase.firestore.Timestamp.now();
-  db.collection('contenants').doc(identifiant).set({
-    identifiant, typeLettre, statut: 'en_service',
-    emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null,
-    historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant'}]
+  const ref = db.collection('contenants').doc(identifiant);
+
+  db.runTransaction(tx=>{
+    return tx.get(ref).then(doc=>{
+      if(doc.exists) throw new Error('DUPLICATE');
+      tx.set(ref, {
+        identifiant, typeLettre, statut: 'en_service',
+        emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null,
+        historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant'}]
+      });
+    });
   }).then(()=>{
     toast("Contenant " + identifiant + " enregistré.", 'ok');
     idInput.value = '';
     idInput.focus();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=>{
+    if(err.message === 'DUPLICATE') toast("Cet identifiant est déjà enregistré.", 'err');
+    else toast("Erreur : " + err.message, 'err');
+  });
 }
 
 // Support douchette code-barres : validation sur "Entrée"
@@ -316,7 +354,7 @@ function renderContenants(){
     return;
   }
 
-  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Statut</th><th>Emplacement</th><th>Créé le</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Statut</th><th>Emplacement</th><th>Créé le</th><th></th></tr></thead><tbody>';
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
     html += `<tr class="clickable" onclick="ouvrirHistorique('${c.identifiant}')">
@@ -325,11 +363,34 @@ function renderContenants(){
       <td>${libelleStatut(c.statut)}</td>
       <td>${emp}</td>
       <td>${formatDate(c.dateCreation)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); imprimerCodeBarre('${c.identifiant}')">Code-barres</button></td>
     </tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
 }
+
+/* ===================================================================
+   IMPRESSION DE CODES-BARRES (JsBarcode)
+   =================================================================== */
+function imprimerCodeBarre(identifiant){
+  const svg = document.getElementById('barcode-svg');
+  JsBarcode(svg, identifiant, {
+    format: 'CODE128',
+    width: 2,
+    height: 70,
+    fontSize: 14,
+    margin: 12
+  });
+  document.getElementById('modal-barcode').classList.add('active');
+}
+
+function closeBarcodeModal(){
+  document.getElementById('modal-barcode').classList.remove('active');
+}
+document.getElementById('modal-barcode').addEventListener('click', e=>{
+  if(e.target.id === 'modal-barcode') closeBarcodeModal();
+});
 
 /* ===================================================================
    STATISTIQUES
