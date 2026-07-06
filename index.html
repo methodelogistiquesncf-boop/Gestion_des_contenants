@@ -265,6 +265,53 @@
   </div>
 </div>
 
+<!-- ---------- MODALE ÉDITION TYPE ---------- -->
+<div class="modal-backdrop" id="modal-edit-type">
+  <div class="modal" style="max-width:520px;">
+    <span class="close-x" onclick="closeEditTypeModal()">✕</span>
+    <h3>Modifier le type <span id="edit-type-lettre-affichage" class="mono"></span></h3>
+    <input type="hidden" id="edit-type-lettre">
+
+    <div class="form-row">
+      <div>
+        <label class="small" for="edit-type-longueur">Longueur</label>
+        <input type="number" id="edit-type-longueur" min="0">
+      </div>
+      <div>
+        <label class="small" for="edit-type-largeur">Largeur</label>
+        <input type="number" id="edit-type-largeur" min="0">
+      </div>
+      <div>
+        <label class="small" for="edit-type-hauteur">Hauteur</label>
+        <input type="number" id="edit-type-hauteur" min="0">
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:12px;">
+      <div style="flex:1; min-width:100%;">
+        <label class="small" for="edit-type-desc">Description</label>
+        <input type="text" id="edit-type-desc" placeholder="Facultatif">
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:12px;">
+      <div>
+        <label class="small" for="edit-type-photo">Photo</label>
+        <input type="file" id="edit-type-photo" accept="image/*" onchange="previewPhotoEditType(event)">
+      </div>
+      <div id="edit-type-photo-preview-wrap" style="display:none; align-items:center; gap:10px;">
+        <img id="edit-type-photo-preview" alt="Aperçu photo" style="max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--line); object-fit:cover;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="effacerPhotoEditType()">Retirer</button>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeEditTypeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="enregistrerEditType()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script src="app.js"></script>
