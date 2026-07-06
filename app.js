@@ -273,22 +273,30 @@ function incrementerIdentifiant(str){
   return '1' + chiffres.join('');
 }
 
+// "Générer" ne fait qu'une PRÉVISUALISATION : simple lecture, rien n'est
+// écrit dans Firestore ici. Le numéro n'est réellement "consommé" (compteur
+// mis à jour) que lorsqu'on clique sur "Ajouter" et que le contenant est
+// vraiment créé — voir creerContenant() ci-dessous. Ainsi, si on génère
+// plusieurs numéros sans jamais valider, on ne crée pas de trous dans la
+// numérotation.
 function genererIdentifiant(){
   const idInput = document.getElementById('new-id');
   const compteurRef = db.collection('compteurs').doc('contenants');
 
-  db.runTransaction(tx=>{
-    return tx.get(compteurRef).then(doc=>{
-      const dernier = doc.exists ? doc.data().dernier : null;
-      const suivant = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
-      tx.set(compteurRef, {dernier: suivant}, {merge:true});
-      return suivant;
-    });
-  }).then(suivant=>{
+  compteurRef.get().then(doc=>{
+    const dernier = doc.exists ? doc.data().dernier : null;
+    const suivant = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
     idInput.value = suivant;
     imprimerCodeBarre(suivant);
     idInput.focus();
   }).catch(err=> toast("Erreur de génération : " + err.message, 'err'));
+}
+
+// Vrai si l'identifiant a le format de la numérotation automatique
+// (18 chiffres). Un identifiant scanné/saisi manuellement dans un autre
+// format n'impacte pas le compteur.
+function estIdentifiantAuto(id){
+  return typeof id === 'string' && id.length === IDENTIFIANT_LONGUEUR && /^[0-9]+$/.test(id);
 }
 
 /* --- Création d'un contenant avec vérification anti-doublon côté serveur ---
