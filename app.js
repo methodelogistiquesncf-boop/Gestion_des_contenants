@@ -229,6 +229,94 @@ function supprimerType(lettre){
     .catch(err=> toast("Erreur : " + err.message, 'err'));
 }
 
+/* --- Édition d'un type existant ---
+   La lettre est l'identifiant du document Firestore : elle n'est pas
+   modifiable ici (la changer reviendrait à créer un nouveau document et
+   à supprimer l'ancien, ce qui casserait la référence typeLettre des
+   contenants existants). Seuls les dimensions, la description et la
+   photo sont éditables. */
+let editTypePhotoBase64 = null; // photo en attente pour la modale d'édition
+let editTypePhotoSupprimee = false; // true si l'utilisateur a explicitement retiré la photo
+
+function ouvrirEditType(lettre){
+  const t = TYPES[lettre];
+  if(!t) return;
+
+  editTypePhotoBase64 = null;
+  editTypePhotoSupprimee = false;
+
+  document.getElementById('edit-type-lettre').value = lettre;
+  document.getElementById('edit-type-lettre-affichage').textContent = lettre;
+  document.getElementById('edit-type-longueur').value = t.longueur || '';
+  document.getElementById('edit-type-largeur').value = t.largeur || '';
+  document.getElementById('edit-type-hauteur').value = t.hauteur || '';
+  document.getElementById('edit-type-desc').value = t.description || '';
+  document.getElementById('edit-type-photo').value = '';
+
+  if(t.photo){
+    document.getElementById('edit-type-photo-preview').src = t.photo;
+    document.getElementById('edit-type-photo-preview-wrap').style.display = 'flex';
+  } else {
+    document.getElementById('edit-type-photo-preview-wrap').style.display = 'none';
+  }
+
+  document.getElementById('modal-edit-type').classList.add('active');
+}
+
+function closeEditTypeModal(){
+  document.getElementById('modal-edit-type').classList.remove('active');
+}
+document.getElementById('modal-edit-type').addEventListener('click', e=>{
+  if(e.target.id === 'modal-edit-type') closeEditTypeModal();
+});
+
+function previewPhotoEditType(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  redimensionnerImage(file).then(base64=>{
+    editTypePhotoBase64 = base64;
+    editTypePhotoSupprimee = false;
+    document.getElementById('edit-type-photo-preview').src = base64;
+    document.getElementById('edit-type-photo-preview-wrap').style.display = 'flex';
+  }).catch(()=> toast("Impossible de lire cette image.", 'err'));
+}
+
+function effacerPhotoEditType(){
+  editTypePhotoBase64 = null;
+  editTypePhotoSupprimee = true;
+  document.getElementById('edit-type-photo').value = '';
+  document.getElementById('edit-type-photo-preview-wrap').style.display = 'none';
+}
+
+function enregistrerEditType(){
+  const lettre = document.getElementById('edit-type-lettre').value;
+  const longueur = document.getElementById('edit-type-longueur').value;
+  const largeur = document.getElementById('edit-type-largeur').value;
+  const hauteur = document.getElementById('edit-type-hauteur').value;
+  const description = document.getElementById('edit-type-desc').value.trim();
+
+  const maj = {
+    longueur: Number(longueur)||0,
+    largeur: Number(largeur)||0,
+    hauteur: Number(hauteur)||0,
+    description
+  };
+
+  // Photo : on ne touche au champ que si l'utilisateur a choisi une
+  // nouvelle photo, ou explicitement retiré l'ancienne. Sinon la photo
+  // existante en base est conservée telle quelle.
+  if(editTypePhotoBase64){
+    maj.photo = editTypePhotoBase64;
+  } else if(editTypePhotoSupprimee){
+    maj.photo = null;
+  }
+
+  db.collection('typesContenants').doc(lettre).update(maj).then(()=>{
+    toast("Type " + lettre + " mis à jour.", 'ok');
+    closeEditTypeModal();
+  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+}
+
 function renderTypes(){
   const el = document.getElementById('types-table');
   const lettres = Object.keys(TYPES).sort();
@@ -249,7 +337,10 @@ function renderTypes(){
       <td>${t.largeur} mm</td>
       <td>${t.hauteur} mm</td>
       <td>${t.description || '—'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="supprimerType('${l}')">Supprimer</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="ouvrirEditType('${l}')">Modifier</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerType('${l}')">Supprimer</button>
+      </td>
     </tr>`;
   });
   html += '</tbody></table>';
