@@ -13,6 +13,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 
+<!-- JsBarcode : génération de codes-barres CODE128 en SVG -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -71,11 +74,14 @@
 
       <div class="panel">
         <h2>Enregistrer un contenant</h2>
-        <p class="sub">Scanne l'identifiant avec la douchette (validation automatique) ou saisis-le manuellement.</p>
+        <p class="sub">Scanne l'identifiant avec la douchette (validation automatique), saisis-le manuellement, ou génère-en un nouveau automatiquement.</p>
         <div class="form-row">
           <div>
             <label class="small" for="new-id">Identifiant unique</label>
-            <input type="text" id="new-id" class="id-input" placeholder="052080000001759940" autocomplete="off">
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="new-id" class="id-input" placeholder="Scanner ou générer un identifiant" autocomplete="off" style="flex:1;">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="genererIdentifiant()">Générer</button>
+            </div>
           </div>
           <div>
             <label class="small" for="new-type">Type</label>
@@ -221,6 +227,21 @@
     <span class="close-x" onclick="closeModal()">✕</span>
     <h3 id="modal-title">Historique</h3>
     <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ---------- MODALE CODE-BARRES ---------- -->
+<div class="modal-backdrop" id="modal-barcode">
+  <div class="modal">
+    <span class="close-x" onclick="closeBarcodeModal()">✕</span>
+    <h3>Code-barres à imprimer</h3>
+    <div id="barcode-print-zone" class="barcode-print-zone">
+      <svg id="barcode-svg"></svg>
+    </div>
+    <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeBarcodeModal()">Fermer</button>
+      <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
+    </div>
   </div>
 </div>
 
