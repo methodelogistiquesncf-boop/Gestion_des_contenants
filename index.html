@@ -428,6 +428,12 @@
         <h2>Répartition par statut</h2>
         <div id="stats-bars"></div>
       </div>
+
+      <div class="panel">
+        <h2>Détail par type</h2>
+        <p class="sub">Quantité totale et répartition par statut, pour chaque type de contenant.</p>
+        <div id="stats-par-type"></div>
+      </div>
     </section>
 
   </main>
@@ -451,12 +457,12 @@
    (Console Firebase > Paramètres du projet > Tes applications > SDK).
    =================================================================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyCt0wwzyQEk1PaZf2cQMNIAiQonWiPqyN8",
-  authDomain: "gestiondescontenants.firebaseapp.com",
-  projectId: "gestiondescontenants",
-  storageBucket: "gestiondescontenants.firebasestorage.app",
-  messagingSenderId: "974245233171",
-  appId: "1:974245233171:web:2d779724958d605c6d75e6"
+  apiKey: "REMPLACE_MOI",
+  authDomain: "REMPLACE_MOI.firebaseapp.com",
+  projectId: "REMPLACE_MOI",
+  storageBucket: "REMPLACE_MOI.appspot.com",
+  messagingSenderId: "REMPLACE_MOI",
+  appId: "REMPLACE_MOI"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -555,6 +561,7 @@ function attacherListenersFirestore(){
     snap.forEach(doc=> TYPES[doc.id] = doc.data());
     renderTypes();
     renderSelectTypes();
+    renderStatsParType();
   }, err=> toast("Erreur de chargement des types : " + err.message, 'err'));
 
   unsubEmp = db.collection('emplacements').onSnapshot(snap=>{
@@ -816,6 +823,7 @@ function renderStats(){
 
   if(total === 0){
     barsEl.innerHTML = '<div class="empty">Aucun contenant enregistré pour l\'instant.</div>';
+    renderStatsParType();
     return;
   }
 
@@ -833,6 +841,41 @@ function renderStats(){
       <div class="stat-bar-label"><span>Réformés</span><span>${nbReforme} (${pct(nbReforme)}%)</span></div>
       <div class="stat-bar-track"><div class="stat-bar-fill info" style="width:${pct(nbReforme)}%"></div></div>
     </div>`;
+
+  renderStatsParType();
+}
+
+function renderStatsParType(){
+  const el = document.getElementById('stats-par-type');
+  if(!el) return;
+
+  const lettres = Object.keys(TYPES).sort();
+  const tous = Object.values(CONTENANTS);
+
+  if(lettres.length === 0){
+    el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant.</div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>Type</th><th>Total</th><th>En service</th><th>Cassé</th><th>Réformé</th><th>Taux de casse</th></tr></thead><tbody>';
+  lettres.forEach(l=>{
+    const items = tous.filter(c=> c.typeLettre === l);
+    const total = items.length;
+    const nbServiceT = items.filter(c=> c.statut === 'en_service').length;
+    const nbCasseT = items.filter(c=> c.statut === 'casse').length;
+    const nbReformeT = items.filter(c=> c.statut === 'reforme').length;
+    const tauxT = total ? Math.round((nbCasseT/total)*100) : 0;
+    html += `<tr>
+      <td class="mono"><strong>${l}</strong></td>
+      <td>${total}</td>
+      <td>${nbServiceT}</td>
+      <td>${nbCasseT}</td>
+      <td>${nbReformeT}</td>
+      <td>${tauxT}%</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 /* ===================================================================
