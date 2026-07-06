@@ -832,8 +832,13 @@ function closeModal(){
 document.getElementById('modal-historique').addEventListener('click', e=>{
   if(e.target.id === 'modal-historique') closeModal();
 });
+
 /* ===================================================================
    BOOK PDF DES TYPES DE CONTENANTS
+   Génère un catalogue PDF (page de couverture + une page par type) à
+   partir des données déjà chargées dans TYPES (photo, dimensions,
+   description). Aucun appel serveur supplémentaire : tout est déjà en
+   mémoire grâce aux listeners Firestore.
    =================================================================== */
 async function genererBookPDF(){
   const lettres = Object.keys(TYPES).sort();
