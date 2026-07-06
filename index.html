@@ -212,6 +212,31 @@
 
   .form-row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;}
   .form-row > div{flex:1; min-width:120px;}
+
+  /* ---------- Statistiques ---------- */
+  .kpi-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;}
+  @media (max-width:820px){ .kpi-grid{grid-template-columns:repeat(2, 1fr);} }
+  .kpi-card{
+    border:1px solid var(--line); border-radius:10px; padding:16px;
+    background:#faf8f3;
+  }
+  .kpi-card .kpi-label{font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft);}
+  .kpi-card .kpi-value{font-size:26px; font-weight:800; margin-top:6px; font-family:var(--mono);}
+  .kpi-card .kpi-sub{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .kpi-card.accent-ok .kpi-value{color:var(--ok);}
+  .kpi-card.accent-danger .kpi-value{color:var(--danger);}
+  .kpi-card.accent-info .kpi-value{color:var(--info);}
+
+  .stat-bar-row{margin-bottom:14px;}
+  .stat-bar-row .stat-bar-label{
+    display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;
+  }
+  .stat-bar-row .stat-bar-label span:last-child{color:var(--ink-soft); font-family:var(--mono);}
+  .stat-bar-track{background:#efe9dc; border-radius:99px; height:10px; overflow:hidden;}
+  .stat-bar-fill{height:100%; border-radius:99px; transition:width .3s ease;}
+  .stat-bar-fill.ok{background:var(--ok);}
+  .stat-bar-fill.danger{background:var(--danger);}
+  .stat-bar-fill.info{background:var(--info);}
 </style>
 </head>
 <body>
@@ -260,6 +285,7 @@
     <button class="tab-btn" data-view="v-casse">Casse / Réparation</button>
     <button class="tab-btn" data-view="v-types">Types de contenants</button>
     <button class="tab-btn" data-view="v-emplacements">Emplacements</button>
+    <button class="tab-btn" data-view="v-stats">Statistiques</button>
   </nav>
 
   <main>
@@ -387,6 +413,20 @@
       <div class="panel">
         <h2>Emplacements existants</h2>
         <div id="emplacements-table"></div>
+      </div>
+    </section>
+
+    <!-- ---------- VUE : STATISTIQUES ---------- -->
+    <section id="v-stats" class="view">
+      <div class="panel">
+        <h2>Vue d'ensemble</h2>
+        <p class="sub">Répartition actuelle de l'ensemble des contenants suivis.</p>
+        <div id="stats-kpis" class="kpi-grid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Répartition par statut</h2>
+        <div id="stats-bars"></div>
       </div>
     </section>
 
@@ -528,6 +568,7 @@ function attacherListenersFirestore(){
     CONTENANTS = {};
     snap.forEach(doc=> CONTENANTS[doc.id] = doc.data());
     renderContenants();
+    renderStats();
   }, err=> toast("Erreur de chargement des contenants : " + err.message, 'err'));
 }
 
@@ -734,6 +775,64 @@ function renderContenants(){
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+/* ===================================================================
+   STATISTIQUES
+   =================================================================== */
+function renderStats(){
+  const kpisEl = document.getElementById('stats-kpis');
+  const barsEl = document.getElementById('stats-bars');
+  if(!kpisEl || !barsEl) return;
+
+  const tous = Object.values(CONTENANTS);
+  const total = tous.length;
+  const nbService = tous.filter(c=> c.statut === 'en_service').length;
+  const nbCasse = tous.filter(c=> c.statut === 'casse').length;
+  const nbReforme = tous.filter(c=> c.statut === 'reforme').length;
+  const tauxCasse = total ? Math.round((nbCasse / total) * 100) : 0;
+
+  kpisEl.innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Total contenants</div>
+      <div class="kpi-value">${total}</div>
+      <div class="kpi-sub">tous statuts confondus</div>
+    </div>
+    <div class="kpi-card accent-ok">
+      <div class="kpi-label">En service</div>
+      <div class="kpi-value">${nbService}</div>
+      <div class="kpi-sub">${total ? Math.round((nbService/total)*100) : 0}% du parc</div>
+    </div>
+    <div class="kpi-card accent-danger">
+      <div class="kpi-label">Cassés</div>
+      <div class="kpi-value">${nbCasse}</div>
+      <div class="kpi-sub">${tauxCasse}% du parc</div>
+    </div>
+    <div class="kpi-card accent-info">
+      <div class="kpi-label">Réformés</div>
+      <div class="kpi-value">${nbReforme}</div>
+      <div class="kpi-sub">${total ? Math.round((nbReforme/total)*100) : 0}% du parc</div>
+    </div>`;
+
+  if(total === 0){
+    barsEl.innerHTML = '<div class="empty">Aucun contenant enregistré pour l\'instant.</div>';
+    return;
+  }
+
+  const pct = n => Math.round((n/total)*100);
+  barsEl.innerHTML = `
+    <div class="stat-bar-row">
+      <div class="stat-bar-label"><span>En service</span><span>${nbService} (${pct(nbService)}%)</span></div>
+      <div class="stat-bar-track"><div class="stat-bar-fill ok" style="width:${pct(nbService)}%"></div></div>
+    </div>
+    <div class="stat-bar-row">
+      <div class="stat-bar-label"><span>Cassés</span><span>${nbCasse} (${pct(nbCasse)}%)</span></div>
+      <div class="stat-bar-track"><div class="stat-bar-fill danger" style="width:${pct(nbCasse)}%"></div></div>
+    </div>
+    <div class="stat-bar-row">
+      <div class="stat-bar-label"><span>Réformés</span><span>${nbReforme} (${pct(nbReforme)}%)</span></div>
+      <div class="stat-bar-track"><div class="stat-bar-fill info" style="width:${pct(nbReforme)}%"></div></div>
+    </div>`;
 }
 
 /* ===================================================================
