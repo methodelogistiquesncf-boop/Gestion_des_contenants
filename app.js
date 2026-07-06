@@ -19,10 +19,12 @@ const db = firebase.firestore();
 /* ===================================================================
    ÉTAT LOCAL
    =================================================================== */
-let TYPES = {};        // { lettre: {lettre, longueur, largeur, hauteur, description} }
+let TYPES = {};        // { lettre: {lettre, longueur, largeur, hauteur, description, photo} }
 let EMPLACEMENTS = {}; // { id: {id, nom, description} }
 let CONTENANTS = {};   // { identifiant: {...} }
 let unsubTypes = null, unsubEmp = null, unsubCont = null;
+
+let typePhotoBase64 = null; // photo en attente pour le nouveau type (aperçu avant "Ajouter")
 
 /* ===================================================================
    AUTHENTIFICATION
@@ -127,6 +129,72 @@ function attacherListenersFirestore(){
 }
 
 /* ===================================================================
+   PHOTOS (encodage base64 côté client)
+   =================================================================== */
+
+/* Redimensionne et compresse l'image côté client avant stockage en
+   base64 dans Firestore. Chaque document Firestore est limité à 1 Mo :
+   sans compression, une simple photo de smartphone (3-5 Mo) ferait
+   largement dépasser cette limite. En la redimensionnant à 480px de
+   large et en la ré-encodant en JPEG qualité 0.72, on obtient
+   généralement des chaînes base64 de 20 à 60 Ko, ce qui laisse une
+   énorme marge sur les autres champs du document. */
+function redimensionnerImage(file, maxLargeur = 480, qualite = 0.72){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const ratio = Math.min(1, maxLargeur / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', qualite));
+      };
+      img.onerror = ()=> reject(new Error('IMAGE_INVALIDE'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=> reject(new Error('LECTURE_IMPOSSIBLE'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Aperçu de la photo choisie pour un NOUVEAU type (avant clic sur "Ajouter")
+function previewPhotoType(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  redimensionnerImage(file).then(base64=>{
+    typePhotoBase64 = base64;
+    document.getElementById('type-photo-preview').src = base64;
+    document.getElementById('type-photo-preview-wrap').style.display = 'flex';
+  }).catch(()=> toast("Impossible de lire cette image.", 'err'));
+}
+
+function effacerPhotoType(){
+  typePhotoBase64 = null;
+  document.getElementById('type-photo').value = '';
+  document.getElementById('type-photo-preview-wrap').style.display = 'none';
+}
+
+// Ouvre la photo d'un type existant en grand (modale)
+function ouvrirPhotoType(lettre){
+  const t = TYPES[lettre];
+  if(!t || !t.photo) return;
+  document.getElementById('modal-photo-title').textContent = 'Photo — Type ' + lettre;
+  document.getElementById('modal-photo-img').src = t.photo;
+  document.getElementById('modal-photo').classList.add('active');
+}
+
+function closePhotoModal(){
+  document.getElementById('modal-photo').classList.remove('active');
+}
+document.getElementById('modal-photo').addEventListener('click', e=>{
+  if(e.target.id === 'modal-photo') closePhotoModal();
+});
+
+/* ===================================================================
    TYPES DE CONTENANTS
    =================================================================== */
 function creerType(){
@@ -141,7 +209,8 @@ function creerType(){
 
   db.collection('typesContenants').doc(lettre).set({
     lettre, longueur: Number(longueur)||0, largeur: Number(largeur)||0,
-    hauteur: Number(hauteur)||0, description
+    hauteur: Number(hauteur)||0, description,
+    photo: typePhotoBase64 || null
   }).then(()=>{
     toast("Type " + lettre + " ajouté.", 'ok');
     document.getElementById('type-lettre').value='';
@@ -149,6 +218,7 @@ function creerType(){
     document.getElementById('type-largeur').value='';
     document.getElementById('type-hauteur').value='';
     document.getElementById('type-desc').value='';
+    effacerPhotoType();
   }).catch(err=> toast("Erreur : " + err.message, 'err'));
 }
 
@@ -166,10 +236,14 @@ function renderTypes(){
     el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant.</div>';
     return;
   }
-  let html = '<table><thead><tr><th>Lettre</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Photo</th><th>Lettre</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
   lettres.forEach(l=>{
     const t = TYPES[l];
+    const photoHtml = t.photo
+      ? `<img src="${t.photo}" class="type-thumb" onclick="ouvrirPhotoType('${l}')" alt="Photo type ${t.lettre}">`
+      : '<span class="type-thumb-empty">—</span>';
     html += `<tr>
+      <td>${photoHtml}</td>
       <td class="mono"><strong>${t.lettre}</strong></td>
       <td>${t.longueur} mm</td>
       <td>${t.largeur} mm</td>
