@@ -177,15 +177,26 @@ tr.clickable:hover{background:#faf8f3;}
 
 .toolbar{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center;}
 select, input[type=text], input[type=number], input[type=password]{
+  width:100%;
   padding:9px 10px; border:1px solid var(--line); border-radius:8px;
   font-family:var(--sans); font-size:13.5px; background:#fdfcfa; color:var(--ink);
 }
 select:focus, input:focus{outline:2px solid var(--teal); outline-offset:1px; border-color:var(--teal);}
 label.small{font-size:11.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:5px;}
 
+/* La toolbar contient des filtres côte à côte : on ne veut pas qu'ils
+   s'étirent sur toute la largeur comme dans un form-row, donc on leur
+   donne une largeur raisonnable et fixe plutôt que 100%. */
+.toolbar select, .toolbar input[type=text]{
+  width:auto;
+  min-width:160px;
+  flex:1 1 180px;
+}
+
 input[type=file]{
   font-family:var(--sans); font-size:12.5px; color:var(--ink-soft);
   padding:8px 0;
+  width:100%;
 }
 
 .empty{
@@ -222,8 +233,20 @@ input[type=file]{
 .hist-item:last-child{border-bottom:none;}
 .hist-item .date{color:var(--ink-soft); font-size:11.5px;}
 
-.form-row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;}
-.form-row > div{flex:1; min-width:120px;}
+/* ---------- Rangées de champs de formulaire (form-row) ----------
+   Chaque colonne a une largeur minimale confortable (140px) ; le
+   flex-wrap fait passer les colonnes à la ligne dès que la largeur
+   disponible ne suffit plus, plutôt que de les tasser/chevaucher. */
+.form-row{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;}
+.form-row > div{flex:1 1 140px; min-width:140px;}
+.form-row > div input,
+.form-row > div select{
+  width:100%;
+}
+
+@media (max-width:640px){
+  .form-row > div{flex:1 1 100%; min-width:0;}
+}
 
 /* ---------- Statistiques ---------- */
 .kpi-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;}
