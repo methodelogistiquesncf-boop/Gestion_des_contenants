@@ -30,7 +30,7 @@
       <div class="crate">SC</div>
       <div>
         <h1>Suivi Contenants</h1>
-        <p>Gestion des contenants & réparations</p>
+        <p>Gestion des contenants bois & réparations</p>
       </div>
     </div>
     <div class="field">
@@ -59,7 +59,7 @@
       <div class="crate">SC</div>
       <div>
         <h1>Suivi Contenants</h1>
-        <p>Contenants & réparations</p>
+        <p>Contenants bois & réparations</p>
       </div>
     </div>
     <div class="user-chip">
@@ -146,7 +146,9 @@
           <select id="filter-categorie" onchange="renderContenants()">
             <option value="">Toutes les catégories</option>
           </select>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="exporterContenantsCSV()">⭳ Exporter CSV</button>
         </div>
+        <p class="sub" style="margin-top:-8px; margin-bottom:12px;">Clique sur un en-tête de colonne pour trier. L'export CSV reprend exactement les contenants filtrés et triés affichés ci-dessous.</p>
         <div id="contenants-table"></div>
       </div>
     </section>
