@@ -28,6 +28,59 @@ let unsubTypes = null, unsubEmp = null, unsubCont = null, unsubCat = null;
 let typePhotoBase64 = null; // photo en attente pour le nouveau type (aperçu avant "Ajouter")
 
 /* ===================================================================
+   DÉCONNEXION AUTOMATIQUE POUR INACTIVITÉ
+   Après 8 heures sans la moindre interaction (clic, frappe, défilement,
+   toucher, molette), l'utilisateur est automatiquement déconnecté et
+   renvoyé vers l'écran de connexion.
+
+   La dernière activité est stockée dans localStorage (et pas seulement
+   en mémoire) afin de survivre à un rechargement de page ou à une
+   fermeture/réouverture de l'onglet : si le PC part en veille prolongée
+   ou que l'onglet reste ouvert en arrière-plan pendant la nuit, la
+   vérification au retour (au chargement de la page, ou via le minuteur
+   pendant que la page reste ouverte) déclenche quand même la
+   déconnexion.
+   =================================================================== */
+const INACTIVITE_CLE = 'derniereActiviteSuiviContenantsBois';
+const INACTIVITE_MAX_MS = 8 * 60 * 60 * 1000; // 8 heures
+let inactiviteInterval = null;
+
+function enregistrerActivite(){
+  // On n'écrit dans localStorage que si quelqu'un est connecté : inutile
+  // de suivre une "activité" sur l'écran de connexion lui-même.
+  if(auth.currentUser){
+    localStorage.setItem(INACTIVITE_CLE, Date.now().toString());
+  }
+}
+
+// Tout type d'interaction utilisateur relance le compteur d'inactivité.
+['click','keydown','mousemove','wheel','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt, enregistrerActivite, {passive:true});
+});
+
+function demarrerSurveillanceInactivite(){
+  arreterSurveillanceInactivite();
+  // Vérification toutes les minutes : largement suffisant pour une limite
+  // de 8h, et ça évite de solliciter le CPU/la batterie inutilement.
+  inactiviteInterval = setInterval(()=>{
+    const derniere = Number(localStorage.getItem(INACTIVITE_CLE) || 0);
+    if(derniere && (Date.now() - derniere) > INACTIVITE_MAX_MS){
+      arreterSurveillanceInactivite();
+      auth.signOut().then(()=>{
+        toast("Session expirée après 8h d'inactivité, reconnecte-toi.", 'err');
+      });
+    }
+  }, 60 * 1000);
+}
+
+function arreterSurveillanceInactivite(){
+  if(inactiviteInterval){
+    clearInterval(inactiviteInterval);
+    inactiviteInterval = null;
+  }
+}
+
+/* ===================================================================
    ÉTATS DE CHARGEMENT DES BOUTONS
    Évite les doubles soumissions vers Firestore : le bouton se
    désactive et affiche un petit spinner + libellé pendant l'appel,
@@ -86,10 +139,25 @@ function traduireErreurAuth(err){
 
 auth.onAuthStateChanged(user=>{
   if(user){
+    // Si la dernière activité connue date de plus de 8h (onglet resté
+    // ouvert en arrière-plan, PC en veille prolongée, session Firebase
+    // encore techniquement valide après une longue absence...), on
+    // déconnecte immédiatement au lieu d'afficher l'application : on ne
+    // laisse jamais réapparaître l'app sans repasser par l'écran de
+    // connexion dans ce cas.
+    const derniere = Number(localStorage.getItem(INACTIVITE_CLE) || 0);
+    if(derniere && (Date.now() - derniere) > INACTIVITE_MAX_MS){
+      localStorage.removeItem(INACTIVITE_CLE);
+      auth.signOut();
+      return;
+    }
+
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('user-email').textContent = user.email;
     attacherListenersFirestore();
+    enregistrerActivite();
+    demarrerSurveillanceInactivite();
   } else {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
@@ -97,6 +165,8 @@ auth.onAuthStateChanged(user=>{
     if(unsubEmp) unsubEmp();
     if(unsubCont) unsubCont();
     if(unsubCat) unsubCat();
+    arreterSurveillanceInactivite();
+    localStorage.removeItem(INACTIVITE_CLE);
   }
 });
 
