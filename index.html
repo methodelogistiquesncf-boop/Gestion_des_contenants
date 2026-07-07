@@ -74,6 +74,7 @@
     <button class="tab-btn" data-view="v-casse">Casse / Réparation</button>
     <button class="tab-btn" data-view="v-types">Types de contenants</button>
     <button class="tab-btn" data-view="v-emplacements">Emplacements</button>
+    <button class="tab-btn" data-view="v-categories">Catégories</button>
     <button class="tab-btn" data-view="v-stats">Statistiques</button>
   </nav>
 
@@ -120,6 +121,9 @@
           <select id="filter-emplacement" onchange="renderContenants()">
             <option value="">Tous les emplacements</option>
           </select>
+          <select id="filter-categorie" onchange="renderContenants()">
+            <option value="">Toutes les catégories</option>
+          </select>
         </div>
         <div id="contenants-table"></div>
       </div>
@@ -165,6 +169,10 @@
           <div>
             <label class="small" for="type-hauteur">Hauteur</label>
             <input type="number" id="type-hauteur" min="0">
+          </div>
+          <div>
+            <label class="small" for="type-categorie">Catégorie</label>
+            <select id="type-categorie"><option value="">Aucune</option></select>
           </div>
           <div style="flex:2; min-width:160px;">
             <label class="small" for="type-desc">Description</label>
@@ -219,6 +227,32 @@
       <div class="panel">
         <h2>Emplacements existants</h2>
         <div id="emplacements-table"></div>
+      </div>
+    </section>
+
+    <!-- ---------- VUE : CATÉGORIES ---------- -->
+    <section id="v-categories" class="view">
+      <div class="panel">
+        <h2>Ajouter une catégorie</h2>
+        <p class="sub">Ex : Bois, Métallique, Plastique…</p>
+        <div class="form-row">
+          <div>
+            <label class="small" for="cat-nom">Nom</label>
+            <input type="text" id="cat-nom" placeholder="Ex: Bois">
+          </div>
+          <div style="max-width:90px;">
+            <label class="small" for="cat-couleur">Couleur</label>
+            <input type="color" id="cat-couleur" value="#8a5a34">
+          </div>
+          <div style="flex:0;">
+            <button class="btn btn-primary" onclick="creerCategorie()">Ajouter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Catégories existantes</h2>
+        <div id="categories-table"></div>
       </div>
     </section>
 
@@ -297,6 +331,13 @@
       <div>
         <label class="small" for="edit-type-hauteur">Hauteur</label>
         <input type="number" id="edit-type-hauteur" min="0">
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:12px;">
+      <div>
+        <label class="small" for="edit-type-categorie">Catégorie</label>
+        <select id="edit-type-categorie"><option value="">Aucune</option></select>
       </div>
     </div>
 
