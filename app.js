@@ -28,6 +28,28 @@ let unsubTypes = null, unsubEmp = null, unsubCont = null, unsubCat = null;
 let typePhotoBase64 = null; // photo en attente pour le nouveau type (aperçu avant "Ajouter")
 
 /* ===================================================================
+   ÉTATS DE CHARGEMENT DES BOUTONS
+   Évite les doubles soumissions vers Firestore : le bouton se
+   désactive et affiche un petit spinner + libellé pendant l'appel,
+   puis reprend son état d'origine (succès ou échec).
+   =================================================================== */
+function setBtnLoading(btn, loadingLabel){
+  if(!btn) return;
+  if(!btn.dataset.originalLabel) btn.dataset.originalLabel = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>' + (loadingLabel || 'Enregistrement…');
+}
+
+function clearBtnLoading(btn){
+  if(!btn) return;
+  btn.disabled = false;
+  if(btn.dataset.originalLabel){
+    btn.innerHTML = btn.dataset.originalLabel;
+    delete btn.dataset.originalLabel;
+  }
+}
+
+/* ===================================================================
    AUTHENTIFICATION
    =================================================================== */
 function doLogin(){
@@ -119,7 +141,7 @@ document.getElementById('modal-forgot').addEventListener('click', e=>{
   if(e.target.id === 'modal-forgot') closeForgotModal();
 });
 
-function envoyerResetMotDePasse(){
+function envoyerResetMotDePasse(btn){
   const email = document.getElementById('forgot-email').value.trim();
   const msgEl = document.getElementById('forgot-msg');
 
@@ -129,13 +151,14 @@ function envoyerResetMotDePasse(){
     return;
   }
 
+  setBtnLoading(btn, 'Envoi…');
   auth.sendPasswordResetEmail(email).then(()=>{
     msgEl.style.color = 'var(--ok)';
     msgEl.textContent = "E-mail envoyé. Vérifie ta boîte de réception (et les spams).";
   }).catch(err=>{
     msgEl.style.color = 'var(--danger)';
     msgEl.textContent = traduireErreurAuth(err);
-  });
+  }).finally(()=> clearBtnLoading(btn));
 }
 
 /* ===================================================================
@@ -158,7 +181,7 @@ document.getElementById('modal-change-password').addEventListener('click', e=>{
   if(e.target.id === 'modal-change-password') closeChangePasswordModal();
 });
 
-function enregistrerNouveauMotDePasse(){
+function enregistrerNouveauMotDePasse(btn){
   const current = document.getElementById('cp-current').value;
   const nouveau = document.getElementById('cp-new').value;
   const confirmation = document.getElementById('cp-new-confirm').value;
@@ -184,6 +207,8 @@ function enregistrerNouveauMotDePasse(){
     return;
   }
 
+  setBtnLoading(btn, 'Enregistrement…');
+
   // Firebase exige une connexion "récente" pour changer le mot de passe :
   // on ré-authentifie d'abord avec le mot de passe actuel avant d'appeler
   // updatePassword, sinon Firebase renvoie l'erreur auth/requires-recent-login.
@@ -198,7 +223,7 @@ function enregistrerNouveauMotDePasse(){
   }).catch(err=>{
     msgEl.style.color = 'var(--danger)';
     msgEl.textContent = traduireErreurAuth(err);
-  });
+  }).finally(()=> clearBtnLoading(btn));
 }
 
 /* ===================================================================
@@ -212,6 +237,13 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById(btn.dataset.view).classList.add('active');
   });
 });
+
+// Raccourci utilisé par le badge d'alerte du bandeau : envoie directement
+// vers l'onglet Casse / Réparation, où l'utilisateur peut agir.
+function allerVersCasse(){
+  const btn = document.querySelector('.tab-btn[data-view="v-casse"]');
+  if(btn) btn.click();
+}
 
 /* ===================================================================
    TOASTS
@@ -333,20 +365,22 @@ document.getElementById('modal-photo').addEventListener('click', e=>{
    à une catégorie pour permettre de filtrer et de statistiquer par
    matériau ou famille de contenant.)
    =================================================================== */
-function creerCategorie(){
+function creerCategorie(btn){
   const nom = document.getElementById('cat-nom').value.trim();
-  const couleur = document.getElementById('cat-couleur').value || '#8a5a34';
+  const couleur = document.getElementById('cat-couleur').value || '#2c5f8a';
 
   if(!nom){ toast("Indique un nom de catégorie.", 'err'); return; }
 
   const dejaExistante = Object.values(CATEGORIES).some(c=> c.nom.toLowerCase() === nom.toLowerCase());
   if(dejaExistante){ toast("Cette catégorie existe déjà.", 'err'); return; }
 
+  setBtnLoading(btn, 'Ajout…');
   db.collection('categoriesContenants').add({nom, couleur}).then(()=>{
     toast("Catégorie \"" + nom + "\" ajoutée.", 'ok');
     document.getElementById('cat-nom').value = '';
-    document.getElementById('cat-couleur').value = '#8a5a34';
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+    document.getElementById('cat-couleur').value = '#2c5f8a';
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 function supprimerCategorie(id){
@@ -363,7 +397,7 @@ function ouvrirEditCategorie(id){
   if(!c) return;
   document.getElementById('edit-cat-id').value = id;
   document.getElementById('edit-cat-nom').value = c.nom || '';
-  document.getElementById('edit-cat-couleur').value = c.couleur || '#8a5a34';
+  document.getElementById('edit-cat-couleur').value = c.couleur || '#2c5f8a';
   document.getElementById('modal-edit-categorie').classList.add('active');
 }
 
@@ -374,17 +408,19 @@ document.getElementById('modal-edit-categorie').addEventListener('click', e=>{
   if(e.target.id === 'modal-edit-categorie') closeEditCategorieModal();
 });
 
-function enregistrerEditCategorie(){
+function enregistrerEditCategorie(btn){
   const id = document.getElementById('edit-cat-id').value;
   const nom = document.getElementById('edit-cat-nom').value.trim();
-  const couleur = document.getElementById('edit-cat-couleur').value || '#8a5a34';
+  const couleur = document.getElementById('edit-cat-couleur').value || '#2c5f8a';
 
   if(!nom){ toast("Indique un nom de catégorie.", 'err'); return; }
 
+  setBtnLoading(btn, 'Enregistrement…');
   db.collection('categoriesContenants').doc(id).update({nom, couleur}).then(()=>{
     toast("Catégorie mise à jour.", 'ok');
     closeEditCategorieModal();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 function renderCategories(){
@@ -392,7 +428,7 @@ function renderCategories(){
   if(!el) return;
   const ids = Object.keys(CATEGORIES).sort((a,b)=> CATEGORIES[a].nom.localeCompare(CATEGORIES[b].nom));
   if(ids.length === 0){
-    el.innerHTML = '<div class="empty">Aucune catégorie enregistrée pour l\'instant.</div>';
+    el.innerHTML = '<div class="empty">Aucune catégorie enregistrée pour l\'instant. Ajoute-en une ci-dessus.</div>';
     return;
   }
 
@@ -452,7 +488,7 @@ function badgeCategorie(catId){
 /* ===================================================================
    TYPES DE CONTENANTS
    =================================================================== */
-function creerType(){
+function creerType(btn){
   const lettre = document.getElementById('type-lettre').value.trim().toUpperCase();
   const longueur = document.getElementById('type-longueur').value;
   const largeur = document.getElementById('type-largeur').value;
@@ -463,6 +499,7 @@ function creerType(){
   if(!lettre){ toast("Indique une lettre pour ce type.", 'err'); return; }
   if(TYPES[lettre]){ toast("Ce type existe déjà.", 'err'); return; }
 
+  setBtnLoading(btn, 'Ajout…');
   db.collection('typesContenants').doc(lettre).set({
     lettre, longueur: Number(longueur)||0, largeur: Number(largeur)||0,
     hauteur: Number(hauteur)||0, description, categorieId,
@@ -476,7 +513,8 @@ function creerType(){
     document.getElementById('type-desc').value='';
     document.getElementById('type-categorie').value='';
     effacerPhotoType();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 function supprimerType(lettre){
@@ -546,7 +584,7 @@ function effacerPhotoEditType(){
   document.getElementById('edit-type-photo-preview-wrap').style.display = 'none';
 }
 
-function enregistrerEditType(){
+function enregistrerEditType(btn){
   const lettre = document.getElementById('edit-type-lettre').value;
   const longueur = document.getElementById('edit-type-longueur').value;
   const largeur = document.getElementById('edit-type-largeur').value;
@@ -571,17 +609,19 @@ function enregistrerEditType(){
     maj.photo = null;
   }
 
+  setBtnLoading(btn, 'Enregistrement…');
   db.collection('typesContenants').doc(lettre).update(maj).then(()=>{
     toast("Type " + lettre + " mis à jour.", 'ok');
     closeEditTypeModal();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 function renderTypes(){
   const el = document.getElementById('types-table');
   const lettres = Object.keys(TYPES).sort();
   if(lettres.length === 0){
-    el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant.</div>';
+    el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant. Ajoute-en un ci-dessus.</div>';
     return;
   }
   let html = '<table><thead><tr><th>Photo</th><th>Lettre</th><th>Catégorie</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
@@ -624,16 +664,18 @@ function renderSelectTypes(){
 /* ===================================================================
    EMPLACEMENTS DE RÉPARATION
    =================================================================== */
-function creerEmplacement(){
+function creerEmplacement(btn){
   const nom = document.getElementById('emp-nom').value.trim();
   const description = document.getElementById('emp-desc').value.trim();
   if(!nom){ toast("Indique un nom d'emplacement.", 'err'); return; }
 
+  setBtnLoading(btn, 'Ajout…');
   db.collection('emplacements').add({nom, description}).then(()=>{
     toast("Emplacement ajouté.", 'ok');
     document.getElementById('emp-nom').value='';
     document.getElementById('emp-desc').value='';
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 function supprimerEmplacement(id){
@@ -647,7 +689,7 @@ function renderEmplacements(){
   const el = document.getElementById('emplacements-table');
   const ids = Object.keys(EMPLACEMENTS);
   if(ids.length === 0){
-    el.innerHTML = '<div class="empty">Aucun emplacement enregistré pour l\'instant.</div>';
+    el.innerHTML = '<div class="empty">Aucun emplacement enregistré pour l\'instant. Ajoute-en un ci-dessus.</div>';
     return;
   }
   let html = '<table><thead><tr><th>Nom</th><th>Description</th><th></th></tr></thead><tbody>';
@@ -730,7 +772,7 @@ function estIdentifiantAuto(id){
    document au moment exact de l'écriture, donc même si le cache local
    (CONTENANTS) n'est pas encore à jour ou si deux utilisateurs créent
    le même identifiant en même temps, un seul des deux réussira. */
-function creerContenant(){
+function creerContenant(btn){
   const idInput = document.getElementById('new-id');
   const identifiant = idInput.value.trim();
   const typeLettre = document.getElementById('new-type').value;
@@ -741,6 +783,8 @@ function creerContenant(){
   const now = firebase.firestore.Timestamp.now();
   const ref = db.collection('contenants').doc(identifiant);
   const compteurRef = db.collection('compteurs').doc('contenants');
+
+  setBtnLoading(btn, 'Enregistrement…');
 
   // La mise à jour du compteur se fait DANS la même transaction que la
   // création du contenant : c'est le seul moyen de garantir que le
@@ -776,22 +820,32 @@ function creerContenant(){
   }).catch(err=>{
     if(err.message === 'DUPLICATE') toast("Cet identifiant est déjà enregistré.", 'err');
     else toast("Erreur : " + err.message, 'err');
-  });
+  }).finally(()=> clearBtnLoading(btn));
 }
 
 // Support douchette code-barres : validation sur "Entrée"
 document.getElementById('new-id').addEventListener('keydown', e=>{
-  if(e.key === 'Enter'){ e.preventDefault(); creerContenant(); }
+  if(e.key === 'Enter'){ e.preventDefault(); creerContenant(document.getElementById('btn-creer-contenant')); }
 });
 document.getElementById('lookup-id').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupContenant(); }
 });
 
+/* ===================================================================
+   ICÔNES DE STATUT
+   Chaque statut est toujours signalé par une couleur ET une icône, afin
+   de rester lisible même pour les personnes daltoniennes ou sur un
+   écran peu contrasté en atelier.
+   =================================================================== */
+const ICON_STATUT_OK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>';
+const ICON_STATUT_ATTENTION = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>';
+const ICON_STATUT_NEUTRE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg>';
+
 function libelleStatut(statut){
   switch(statut){
-    case 'en_service': return '<span class="badge badge-ok">En service</span>';
-    case 'casse': return '<span class="badge badge-danger">Cassé</span>';
-    case 'reforme': return '<span class="badge badge-info">Réformé</span>';
+    case 'en_service': return '<span class="badge badge-ok">' + ICON_STATUT_OK + 'En service</span>';
+    case 'casse': return '<span class="badge badge-attention">' + ICON_STATUT_ATTENTION + 'Cassé</span>';
+    case 'reforme': return '<span class="badge badge-neutral">' + ICON_STATUT_NEUTRE + 'Réformé</span>';
     default: return statut;
   }
 }
@@ -870,11 +924,31 @@ document.getElementById('modal-barcode').addEventListener('click', e=>{
 });
 
 /* ===================================================================
+   BADGE D'ALERTE (contenants cassés en attente)
+   Affiché en permanence dans le bandeau, quel que soit l'onglet actif :
+   c'est l'information la plus actionnable de l'app et elle ne doit pas
+   être reléguée à l'onglet Statistiques.
+   =================================================================== */
+function renderAlertChip(){
+  const chip = document.getElementById('alert-chip-casse');
+  const countEl = document.getElementById('alert-chip-count');
+  if(!chip || !countEl) return;
+  const nbCasse = Object.values(CONTENANTS).filter(c=> c.statut === 'casse').length;
+  if(nbCasse > 0){
+    countEl.textContent = nbCasse + (nbCasse > 1 ? ' cassés à traiter' : ' cassé à traiter');
+    chip.classList.add('visible');
+  } else {
+    chip.classList.remove('visible');
+  }
+}
+
+/* ===================================================================
    STATISTIQUES
    =================================================================== */
 function renderStats(){
   const kpisEl = document.getElementById('stats-kpis');
   const barsEl = document.getElementById('stats-bars');
+  renderAlertChip();
   if(!kpisEl || !barsEl) return;
 
   const tous = Object.values(CONTENANTS);
@@ -1042,7 +1116,7 @@ function lookupContenant(){
           <input type="text" id="casse-commentaire" placeholder="Facultatif">
         </div>
         <div style="flex:0;">
-          <button class="btn btn-danger" onclick="declarerCasse()">Déclarer cassé</button>
+          <button class="btn btn-danger" onclick="declarerCasse(this)">Déclarer cassé</button>
         </div>
       </div>`;
   } else if(c.statut === 'casse'){
@@ -1053,10 +1127,10 @@ function lookupContenant(){
           <input type="text" id="reparation-commentaire" placeholder="Facultatif">
         </div>
         <div style="flex:0;">
-          <button class="btn btn-primary" onclick="marquerRepare()">Remettre en service</button>
+          <button class="btn btn-primary" onclick="marquerRepare(this)">Remettre en service</button>
         </div>
         <div style="flex:0;">
-          <button class="btn btn-ghost" onclick="marquerReforme()">Réformer définitivement</button>
+          <button class="btn btn-ghost" onclick="marquerReforme(this)">Réformer définitivement</button>
         </div>
       </div>`;
   } else {
@@ -1073,13 +1147,14 @@ function lookupContenant(){
     </div>`;
 }
 
-function declarerCasse(){
+function declarerCasse(btn){
   if(!contenantCourant) return;
   const empId = document.getElementById('casse-emplacement').value;
   const commentaire = document.getElementById('casse-commentaire').value.trim();
   if(!empId){ toast("Sélectionne un emplacement de réparation.", 'err'); return; }
 
   const now = firebase.firestore.Timestamp.now();
+  setBtnLoading(btn, 'Enregistrement…');
   db.collection('contenants').doc(contenantCourant.identifiant).update({
     statut: 'casse',
     emplacementId: empId,
@@ -1093,13 +1168,15 @@ function declarerCasse(){
     document.getElementById('lookup-id').value = '';
     document.getElementById('lookup-result').innerHTML = '';
     document.getElementById('lookup-id').focus();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
-function marquerRepare(){
+function marquerRepare(btn){
   if(!contenantCourant) return;
   const commentaire = document.getElementById('reparation-commentaire').value.trim();
   const now = firebase.firestore.Timestamp.now();
+  setBtnLoading(btn, 'Enregistrement…');
   db.collection('contenants').doc(contenantCourant.identifiant).update({
     statut: 'en_service',
     emplacementId: null,
@@ -1113,13 +1190,15 @@ function marquerRepare(){
     document.getElementById('lookup-id').value = '';
     document.getElementById('lookup-result').innerHTML = '';
     document.getElementById('lookup-id').focus();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
-function marquerReforme(){
+function marquerReforme(btn){
   if(!contenantCourant) return;
   if(!confirm("Réformer définitivement ce contenant ? Cette action est difficilement réversible.")) return;
   const now = firebase.firestore.Timestamp.now();
+  setBtnLoading(btn, 'Enregistrement…');
   db.collection('contenants').doc(contenantCourant.identifiant).update({
     statut: 'reforme',
     historique: firebase.firestore.FieldValue.arrayUnion({
@@ -1131,7 +1210,8 @@ function marquerReforme(){
     document.getElementById('lookup-id').value = '';
     document.getElementById('lookup-result').innerHTML = '';
     document.getElementById('lookup-id').focus();
-  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
 }
 
 /* ===================================================================
@@ -1182,12 +1262,12 @@ async function genererBookPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = 210, pageH = 297;
-  const oak = [138, 90, 52];
-  const ink = [38, 35, 30];
-  const inkSoft = [107, 98, 85];
+  const steel = [44, 95, 138];
+  const ink = [27, 39, 51];
+  const inkSoft = [87, 105, 124];
 
   // ---- Page de couverture ----
-  doc.setFillColor(...oak);
+  doc.setFillColor(...steel);
   doc.rect(0, 0, pageW, pageH, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
@@ -1206,7 +1286,7 @@ async function genererBookPDF(){
     doc.addPage();
 
     // Bandeau d'en-tête
-    doc.setFillColor(...oak);
+    doc.setFillColor(...steel);
     doc.rect(0, 0, pageW, 26, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
