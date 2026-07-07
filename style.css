@@ -204,6 +204,9 @@ th{
   text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;
   color:var(--ink-soft); font-weight:700; padding:9px 10px; border-bottom:1px solid var(--line);
 }
+th.sortable{ cursor:pointer; user-select:none; white-space:nowrap; }
+th.sortable:hover{ color:var(--steel); }
+.sort-arrow{ font-size:9px; color:var(--steel); }
 td{padding:11px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 tr.clickable{cursor:pointer;}
