@@ -19,10 +19,11 @@ const db = firebase.firestore();
 /* ===================================================================
    ÉTAT LOCAL
    =================================================================== */
-let TYPES = {};        // { lettre: {lettre, longueur, largeur, hauteur, description, photo} }
+let TYPES = {};        // { lettre: {lettre, longueur, largeur, hauteur, description, photo, categorieId} }
 let EMPLACEMENTS = {}; // { id: {id, nom, description} }
 let CONTENANTS = {};   // { identifiant: {...} }
-let unsubTypes = null, unsubEmp = null, unsubCont = null;
+let CATEGORIES = {};   // { id: {id, nom, couleur} }
+let unsubTypes = null, unsubEmp = null, unsubCont = null, unsubCat = null;
 
 let typePhotoBase64 = null; // photo en attente pour le nouveau type (aperçu avant "Ajouter")
 
@@ -73,6 +74,7 @@ auth.onAuthStateChanged(user=>{
     if(unsubTypes) unsubTypes();
     if(unsubEmp) unsubEmp();
     if(unsubCont) unsubCont();
+    if(unsubCat) unsubCat();
   }
 });
 
@@ -248,6 +250,15 @@ function attacherListenersFirestore(){
     renderContenants();
     renderStats();
   }, err=> toast("Erreur de chargement des contenants : " + err.message, 'err'));
+
+  unsubCat = db.collection('categoriesContenants').onSnapshot(snap=>{
+    CATEGORIES = {};
+    snap.forEach(doc=> CATEGORIES[doc.id] = {id: doc.id, ...doc.data()});
+    renderCategories();
+    renderSelectCategories();
+    renderTypes();
+    renderStatsParCategorie();
+  }, err=> toast("Erreur de chargement des catégories : " + err.message, 'err'));
 }
 
 /* ===================================================================
@@ -317,6 +328,128 @@ document.getElementById('modal-photo').addEventListener('click', e=>{
 });
 
 /* ===================================================================
+   CATÉGORIES DE CONTENANTS
+   (Bois / Métallique / Plastique / etc. — un type peut être rattaché
+   à une catégorie pour permettre de filtrer et de statistiquer par
+   matériau ou famille de contenant.)
+   =================================================================== */
+function creerCategorie(){
+  const nom = document.getElementById('cat-nom').value.trim();
+  const couleur = document.getElementById('cat-couleur').value || '#8a5a34';
+
+  if(!nom){ toast("Indique un nom de catégorie.", 'err'); return; }
+
+  const dejaExistante = Object.values(CATEGORIES).some(c=> c.nom.toLowerCase() === nom.toLowerCase());
+  if(dejaExistante){ toast("Cette catégorie existe déjà.", 'err'); return; }
+
+  db.collection('categoriesContenants').add({nom, couleur}).then(()=>{
+    toast("Catégorie \"" + nom + "\" ajoutée.", 'ok');
+    document.getElementById('cat-nom').value = '';
+    document.getElementById('cat-couleur').value = '#8a5a34';
+  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+}
+
+function supprimerCategorie(id){
+  const c = CATEGORIES[id];
+  const nom = c ? c.nom : '';
+  if(!confirm("Supprimer la catégorie \"" + nom + "\" ? Les types qui l'utilisent n'afficheront plus de catégorie (leurs données ne sont pas supprimées).")) return;
+  db.collection('categoriesContenants').doc(id).delete()
+    .then(()=> toast("Catégorie supprimée.", 'ok'))
+    .catch(err=> toast("Erreur : " + err.message, 'err'));
+}
+
+function ouvrirEditCategorie(id){
+  const c = CATEGORIES[id];
+  if(!c) return;
+  document.getElementById('edit-cat-id').value = id;
+  document.getElementById('edit-cat-nom').value = c.nom || '';
+  document.getElementById('edit-cat-couleur').value = c.couleur || '#8a5a34';
+  document.getElementById('modal-edit-categorie').classList.add('active');
+}
+
+function closeEditCategorieModal(){
+  document.getElementById('modal-edit-categorie').classList.remove('active');
+}
+document.getElementById('modal-edit-categorie').addEventListener('click', e=>{
+  if(e.target.id === 'modal-edit-categorie') closeEditCategorieModal();
+});
+
+function enregistrerEditCategorie(){
+  const id = document.getElementById('edit-cat-id').value;
+  const nom = document.getElementById('edit-cat-nom').value.trim();
+  const couleur = document.getElementById('edit-cat-couleur').value || '#8a5a34';
+
+  if(!nom){ toast("Indique un nom de catégorie.", 'err'); return; }
+
+  db.collection('categoriesContenants').doc(id).update({nom, couleur}).then(()=>{
+    toast("Catégorie mise à jour.", 'ok');
+    closeEditCategorieModal();
+  }).catch(err=> toast("Erreur : " + err.message, 'err'));
+}
+
+function renderCategories(){
+  const el = document.getElementById('categories-table');
+  if(!el) return;
+  const ids = Object.keys(CATEGORIES).sort((a,b)=> CATEGORIES[a].nom.localeCompare(CATEGORIES[b].nom));
+  if(ids.length === 0){
+    el.innerHTML = '<div class="empty">Aucune catégorie enregistrée pour l\'instant.</div>';
+    return;
+  }
+
+  // Nombre de types rattachés à chaque catégorie, pour info.
+  const nbTypesParCat = {};
+  Object.values(TYPES).forEach(t=>{
+    if(t.categorieId) nbTypesParCat[t.categorieId] = (nbTypesParCat[t.categorieId]||0) + 1;
+  });
+
+  let html = '<table><thead><tr><th>Catégorie</th><th>Types rattachés</th><th></th></tr></thead><tbody>';
+  ids.forEach(id=>{
+    html += `<tr>
+      <td>${badgeCategorie(id)}</td>
+      <td>${nbTypesParCat[id] || 0}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="ouvrirEditCategorie('${id}')">Modifier</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerCategorie('${id}')">Supprimer</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// Remplit tous les <select> qui proposent une liste de catégories :
+// le formulaire de création de type, la modale d'édition de type, et
+// le filtre de la liste des contenants.
+function renderSelectCategories(){
+  const ids = Object.keys(CATEGORIES).sort((a,b)=> CATEGORIES[a].nom.localeCompare(CATEGORIES[b].nom));
+  const opts = ids.map(id=> `<option value="${id}">${CATEGORIES[id].nom}</option>`).join('');
+
+  ['type-categorie', 'edit-type-categorie'].forEach(selId=>{
+    const sel = document.getElementById(selId);
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Aucune</option>' + opts;
+    sel.value = current;
+  });
+
+  const selFilter = document.getElementById('filter-categorie');
+  if(selFilter){
+    const current = selFilter.value;
+    selFilter.innerHTML = '<option value="">Toutes les catégories</option>' + opts;
+    selFilter.value = current;
+  }
+}
+
+// Rendu d'un badge coloré pour une catégorie donnée (par son id).
+// Retourne un badge neutre "Non catégorisé" si l'id est vide ou
+// pointe vers une catégorie supprimée.
+function badgeCategorie(catId){
+  const c = CATEGORIES[catId];
+  if(!c) return '<span class="badge-cat badge-cat-empty">Non catégorisé</span>';
+  return `<span class="badge-cat" style="background:${c.couleur}22; color:${c.couleur}; border:1px solid ${c.couleur}55;">${c.nom}</span>`;
+}
+
+/* ===================================================================
    TYPES DE CONTENANTS
    =================================================================== */
 function creerType(){
@@ -325,13 +458,14 @@ function creerType(){
   const largeur = document.getElementById('type-largeur').value;
   const hauteur = document.getElementById('type-hauteur').value;
   const description = document.getElementById('type-desc').value.trim();
+  const categorieId = document.getElementById('type-categorie').value || null;
 
   if(!lettre){ toast("Indique une lettre pour ce type.", 'err'); return; }
   if(TYPES[lettre]){ toast("Ce type existe déjà.", 'err'); return; }
 
   db.collection('typesContenants').doc(lettre).set({
     lettre, longueur: Number(longueur)||0, largeur: Number(largeur)||0,
-    hauteur: Number(hauteur)||0, description,
+    hauteur: Number(hauteur)||0, description, categorieId,
     photo: typePhotoBase64 || null
   }).then(()=>{
     toast("Type " + lettre + " ajouté.", 'ok');
@@ -340,6 +474,7 @@ function creerType(){
     document.getElementById('type-largeur').value='';
     document.getElementById('type-hauteur').value='';
     document.getElementById('type-desc').value='';
+    document.getElementById('type-categorie').value='';
     effacerPhotoType();
   }).catch(err=> toast("Erreur : " + err.message, 'err'));
 }
@@ -355,8 +490,8 @@ function supprimerType(lettre){
    La lettre est l'identifiant du document Firestore : elle n'est pas
    modifiable ici (la changer reviendrait à créer un nouveau document et
    à supprimer l'ancien, ce qui casserait la référence typeLettre des
-   contenants existants). Seuls les dimensions, la description et la
-   photo sont éditables. */
+   contenants existants). Dimensions, description, catégorie et photo
+   sont éditables. */
 let editTypePhotoBase64 = null; // photo en attente pour la modale d'édition
 let editTypePhotoSupprimee = false; // true si l'utilisateur a explicitement retiré la photo
 
@@ -373,6 +508,7 @@ function ouvrirEditType(lettre){
   document.getElementById('edit-type-largeur').value = t.largeur || '';
   document.getElementById('edit-type-hauteur').value = t.hauteur || '';
   document.getElementById('edit-type-desc').value = t.description || '';
+  document.getElementById('edit-type-categorie').value = t.categorieId || '';
   document.getElementById('edit-type-photo').value = '';
 
   if(t.photo){
@@ -416,12 +552,14 @@ function enregistrerEditType(){
   const largeur = document.getElementById('edit-type-largeur').value;
   const hauteur = document.getElementById('edit-type-hauteur').value;
   const description = document.getElementById('edit-type-desc').value.trim();
+  const categorieId = document.getElementById('edit-type-categorie').value || null;
 
   const maj = {
     longueur: Number(longueur)||0,
     largeur: Number(largeur)||0,
     hauteur: Number(hauteur)||0,
-    description
+    description,
+    categorieId
   };
 
   // Photo : on ne touche au champ que si l'utilisateur a choisi une
@@ -446,7 +584,7 @@ function renderTypes(){
     el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant.</div>';
     return;
   }
-  let html = '<table><thead><tr><th>Photo</th><th>Lettre</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Photo</th><th>Lettre</th><th>Catégorie</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
   lettres.forEach(l=>{
     const t = TYPES[l];
     const photoHtml = t.photo
@@ -455,6 +593,7 @@ function renderTypes(){
     html += `<tr>
       <td>${photoHtml}</td>
       <td class="mono"><strong>${t.lettre}</strong></td>
+      <td>${badgeCategorie(t.categorieId)}</td>
       <td>${t.longueur} mm</td>
       <td>${t.largeur} mm</td>
       <td>${t.hauteur} mm</td>
@@ -669,12 +808,17 @@ function renderContenants(){
   const fStatut = document.getElementById('filter-statut').value;
   const fType = document.getElementById('filter-type').value;
   const fEmp = document.getElementById('filter-emplacement').value;
+  const fCategorie = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
 
   let rows = Object.values(CONTENANTS).filter(c=>{
     if(search && !c.identifiant.toLowerCase().includes(search)) return false;
     if(fStatut && c.statut !== fStatut) return false;
     if(fType && c.typeLettre !== fType) return false;
     if(fEmp && c.emplacementId !== fEmp) return false;
+    if(fCategorie){
+      const t = TYPES[c.typeLettre];
+      if(!t || t.categorieId !== fCategorie) return false;
+    }
     return true;
   });
 
@@ -685,12 +829,14 @@ function renderContenants(){
     return;
   }
 
-  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Statut</th><th>Emplacement</th><th>Créé le</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Catégorie</th><th>Statut</th><th>Emplacement</th><th>Créé le</th><th></th></tr></thead><tbody>';
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
+    const t = TYPES[c.typeLettre];
     html += `<tr class="clickable" onclick="ouvrirHistorique('${c.identifiant}')">
       <td class="mono">${c.identifiant}</td>
       <td>${c.typeLettre}</td>
+      <td>${badgeCategorie(t ? t.categorieId : null)}</td>
       <td>${libelleStatut(c.statut)}</td>
       <td>${emp}</td>
       <td>${formatDate(c.dateCreation)}</td>
@@ -763,6 +909,7 @@ function renderStats(){
   if(total === 0){
     barsEl.innerHTML = '<div class="empty">Aucun contenant enregistré pour l\'instant.</div>';
     renderStatsParType();
+    renderStatsParCategorie();
     return;
   }
 
@@ -782,6 +929,7 @@ function renderStats(){
     </div>`;
 
   renderStatsParType();
+  renderStatsParCategorie();
 }
 
 function renderStatsParType(){
@@ -806,6 +954,50 @@ function renderStatsParType(){
     const tauxT = total ? Math.round((nbCasseT/total)*100) : 0;
     html += `<tr>
       <td class="mono"><strong>${l}</strong></td>
+      <td>${total}</td>
+      <td>${nbServiceT}</td>
+      <td>${nbCasseT}</td>
+      <td>${nbReformeT}</td>
+      <td>${tauxT}%</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// Ventilation des contenants par catégorie (Bois / Métallique / etc.),
+// calculée à partir de la catégorie du type auquel chaque contenant
+// appartient. Les contenants dont le type n'a pas de catégorie sont
+// regroupés sous "Non catégorisé".
+function renderStatsParCategorie(){
+  const el = document.getElementById('stats-par-categorie');
+  if(!el) return;
+
+  const tous = Object.values(CONTENANTS);
+  if(tous.length === 0){
+    el.innerHTML = '<div class="empty">Aucun contenant enregistré pour l\'instant.</div>';
+    return;
+  }
+
+  const catIds = Object.keys(CATEGORIES).sort((a,b)=> CATEGORIES[a].nom.localeCompare(CATEGORIES[b].nom));
+  const groupes = catIds.map(id=> ({id, nom: CATEGORIES[id].nom}));
+  groupes.push({id: null, nom: 'Non catégorisé'});
+
+  let html = '<table><thead><tr><th>Catégorie</th><th>Total</th><th>En service</th><th>Cassé</th><th>Réformé</th><th>Taux de casse</th></tr></thead><tbody>';
+  groupes.forEach(g=>{
+    const items = tous.filter(c=>{
+      const t = TYPES[c.typeLettre];
+      const catId = t ? (t.categorieId || null) : null;
+      return catId === g.id;
+    });
+    const total = items.length;
+    if(total === 0 && g.id === null) return; // pas de ligne "Non catégorisé" si vide
+    const nbServiceT = items.filter(c=> c.statut === 'en_service').length;
+    const nbCasseT = items.filter(c=> c.statut === 'casse').length;
+    const nbReformeT = items.filter(c=> c.statut === 'reforme').length;
+    const tauxT = total ? Math.round((nbCasseT/total)*100) : 0;
+    html += `<tr>
+      <td>${g.id ? badgeCategorie(g.id) : '<span class="badge-cat badge-cat-empty">Non catégorisé</span>'}</td>
       <td>${total}</td>
       <td>${nbServiceT}</td>
       <td>${nbCasseT}</td>
@@ -978,8 +1170,8 @@ document.getElementById('modal-historique').addEventListener('click', e=>{
    BOOK PDF DES TYPES DE CONTENANTS
    Génère un catalogue PDF (page de couverture + une page par type) à
    partir des données déjà chargées dans TYPES (photo, dimensions,
-   description). Aucun appel serveur supplémentaire : tout est déjà en
-   mémoire grâce aux listeners Firestore.
+   description, catégorie). Aucun appel serveur supplémentaire : tout
+   est déjà en mémoire grâce aux listeners Firestore.
    =================================================================== */
 async function genererBookPDF(){
   const lettres = Object.keys(TYPES).sort();
@@ -1010,6 +1202,7 @@ async function genererBookPDF(){
   // ---- Une page par type ----
   lettres.forEach((lettre, index) => {
     const t = TYPES[lettre];
+    const cat = t.categorieId ? CATEGORIES[t.categorieId] : null;
     doc.addPage();
 
     // Bandeau d'en-tête
@@ -1019,6 +1212,11 @@ async function genererBookPDF(){
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.text('Type ' + t.lettre, 15, 17);
+    if(cat){
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text(cat.nom, pageW - 15, 17, { align: 'right' });
+    }
 
     let y = 40;
     doc.setTextColor(...ink);
