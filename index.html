@@ -366,6 +366,31 @@
   </div>
 </div>
 
+<!-- ---------- MODALE ÉDITION CATÉGORIE ---------- -->
+<div class="modal-backdrop" id="modal-edit-categorie">
+  <div class="modal" style="max-width:420px;">
+    <span class="close-x" onclick="closeEditCategorieModal()">✕</span>
+    <h3>Modifier la catégorie</h3>
+    <input type="hidden" id="edit-cat-id">
+
+    <div class="form-row">
+      <div>
+        <label class="small" for="edit-cat-nom">Nom</label>
+        <input type="text" id="edit-cat-nom" placeholder="Ex: Bois">
+      </div>
+      <div style="max-width:90px;">
+        <label class="small" for="edit-cat-couleur">Couleur</label>
+        <input type="color" id="edit-cat-couleur" value="#8a5a34">
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeEditCategorieModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="enregistrerEditCategorie()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ---------- MODALE MOT DE PASSE OUBLIÉ ---------- -->
 <div class="modal-backdrop" id="modal-forgot">
   <div class="modal" style="max-width:400px;">
