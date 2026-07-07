@@ -617,14 +617,59 @@ function enregistrerEditType(btn){
     .finally(()=> clearBtnLoading(btn));
 }
 
+const COLONNES_TYPES = [
+  { key: 'lettre', label: 'Lettre', get: l => l },
+  { key: 'categorie', label: 'Catégorie', get: l => {
+      const t = TYPES[l];
+      const cat = t && t.categorieId ? CATEGORIES[t.categorieId] : null;
+      return cat ? cat.nom : '';
+    } },
+  { key: 'longueur', label: 'Longueur', get: l => Number(TYPES[l].longueur) || 0 },
+  { key: 'largeur', label: 'Largeur', get: l => Number(TYPES[l].largeur) || 0 },
+  { key: 'hauteur', label: 'Hauteur', get: l => Number(TYPES[l].hauteur) || 0 },
+  { key: 'description', label: 'Description', get: l => TYPES[l].description || '' }
+];
+let sortTypesState = { colonne: 'lettre', sens: 'asc' };
+
+function trierTypes(colonne){
+  if(sortTypesState.colonne === colonne){
+    sortTypesState.sens = sortTypesState.sens === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortTypesState.colonne = colonne;
+    sortTypesState.sens = 'asc';
+  }
+  renderTypes();
+}
+
+function flecheTriTypes(colonne){
+  if(sortTypesState.colonne !== colonne) return '';
+  return sortTypesState.sens === 'asc'
+    ? ' <span class="sort-arrow">▲</span>'
+    : ' <span class="sort-arrow">▼</span>';
+}
+
 function renderTypes(){
   const el = document.getElementById('types-table');
-  const lettres = Object.keys(TYPES).sort();
+  let lettres = Object.keys(TYPES);
   if(lettres.length === 0){
     el.innerHTML = '<div class="empty">Aucun type enregistré pour l\'instant. Ajoute-en un ci-dessus.</div>';
     return;
   }
-  let html = '<table><thead><tr><th>Photo</th><th>Lettre</th><th>Catégorie</th><th>Longueur</th><th>Largeur</th><th>Hauteur</th><th>Description</th><th></th></tr></thead><tbody>';
+
+  const col = COLONNES_TYPES.find(c=> c.key === sortTypesState.colonne) || COLONNES_TYPES[0];
+  const dir = sortTypesState.sens === 'asc' ? 1 : -1;
+  lettres.sort((a,b)=>{
+    const va = col.get(a), vb = col.get(b);
+    if(va < vb) return -1 * dir;
+    if(va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const enteteHtml = '<th>Photo</th>' + COLONNES_TYPES.map(c=>
+    `<th class="sortable" onclick="trierTypes('${c.key}')">${c.label}${flecheTriTypes(c.key)}</th>`
+  ).join('') + '<th></th>';
+
+  let html = `<table><thead><tr>${enteteHtml}</tr></thead><tbody>`;
   lettres.forEach(l=>{
     const t = TYPES[l];
     const photoHtml = t.photo
@@ -856,8 +901,100 @@ function formatDate(ts){
   return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 }
 
-function renderContenants(){
-  const el = document.getElementById('contenants-table');
+/* ===================================================================
+   TRI DU TABLEAU DES CONTENANTS
+   L'utilisateur clique sur un en-tête de colonne pour trier ; un
+   second clic sur la même colonne inverse le sens. Le tri s'applique
+   après les filtres, sur la liste réellement affichée.
+   =================================================================== */
+const COLONNES_CONTENANTS = [
+  { key: 'identifiant', label: 'Identifiant', get: c => c.identifiant || '' },
+  { key: 'typeLettre', label: 'Type', get: c => c.typeLettre || '' },
+  { key: 'categorie', label: 'Catégorie', get: c => {
+      const t = TYPES[c.typeLettre];
+      const cat = t && t.categorieId ? CATEGORIES[t.categorieId] : null;
+      return cat ? cat.nom : '';
+    } },
+  { key: 'statut', label: 'Statut', get: c => c.statut || '' },
+  { key: 'emplacement', label: 'Emplacement', get: c => c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '' },
+  { key: 'dateCreation', label: 'Créé le', get: c => c.dateCreation && c.dateCreation.seconds ? c.dateCreation.seconds : 0 }
+];
+
+let sortContenantsState = { colonne: 'dateCreation', sens: 'desc' };
+
+function trierContenants(colonne){
+  if(sortContenantsState.colonne === colonne){
+    sortContenantsState.sens = sortContenantsState.sens === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortContenantsState.colonne = colonne;
+    sortContenantsState.sens = colonne === 'dateCreation' ? 'desc' : 'asc';
+  }
+  renderContenants();
+}
+
+function flecheTri(colonne){
+  if(sortContenantsState.colonne !== colonne) return '';
+  return sortContenantsState.sens === 'asc'
+    ? ' <span class="sort-arrow">▲</span>'
+    : ' <span class="sort-arrow">▼</span>';
+}
+
+/* ===================================================================
+   EXPORT CSV DES CONTENANTS
+   Exporte exactement la liste actuellement filtrée/triée à l'écran,
+   pas l'intégralité de la base : ce que l'utilisateur voit est ce
+   qu'il exporte.
+   =================================================================== */
+function echapperCSV(valeur){
+  const str = String(valeur ?? '');
+  if(/[",;\n]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
+  return str;
+}
+
+function exporterContenantsCSV(){
+  const lignes = document.querySelectorAll('#contenants-table tbody tr');
+  if(lignes.length === 0){ toast("Aucun contenant à exporter avec ces filtres.", 'err'); return; }
+
+  const rows = obtenirContenantsFiltresTries();
+  if(rows.length === 0){ toast("Aucun contenant à exporter avec ces filtres.", 'err'); return; }
+
+  const entetes = ['Identifiant', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];
+  const lignesCSV = [entetes.join(';')];
+
+  const libelleStatutTexte = statut => ({
+    en_service: 'En service', casse: 'Cassé', reforme: 'Réformé'
+  }[statut] || statut);
+
+  rows.forEach(c=>{
+    const t = TYPES[c.typeLettre];
+    const cat = t && t.categorieId ? CATEGORIES[t.categorieId] : null;
+    const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '';
+    lignesCSV.push([
+      echapperCSV(c.identifiant),
+      echapperCSV(c.typeLettre),
+      echapperCSV(cat ? cat.nom : ''),
+      echapperCSV(libelleStatutTexte(c.statut)),
+      echapperCSV(emp),
+      echapperCSV(formatDate(c.dateCreation))
+    ].join(';'));
+  });
+
+  // \ufeff (BOM) en tête pour qu'Excel reconnaisse l'UTF-8 (accents) sans corruption.
+  const blob = new Blob(['\ufeff' + lignesCSV.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'contenants-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast(rows.length + " contenant(s) exporté(s).", 'ok');
+}
+
+// Applique les mêmes filtres que renderContenants(), pour partager la
+// logique entre l'affichage à l'écran et l'export CSV.
+function obtenirContenantsFiltresTries(){
   const search = (document.getElementById('filter-search').value || '').trim().toLowerCase();
   const fStatut = document.getElementById('filter-statut').value;
   const fType = document.getElementById('filter-type').value;
@@ -876,14 +1013,32 @@ function renderContenants(){
     return true;
   });
 
-  rows.sort((a,b)=> (b.dateCreation?.seconds||0) - (a.dateCreation?.seconds||0));
+  const col = COLONNES_CONTENANTS.find(c=> c.key === sortContenantsState.colonne) || COLONNES_CONTENANTS[COLONNES_CONTENANTS.length-1];
+  const dir = sortContenantsState.sens === 'asc' ? 1 : -1;
+  rows.sort((a,b)=>{
+    const va = col.get(a), vb = col.get(b);
+    if(va < vb) return -1 * dir;
+    if(va > vb) return 1 * dir;
+    return 0;
+  });
+
+  return rows;
+}
+
+function renderContenants(){
+  const el = document.getElementById('contenants-table');
+  const rows = obtenirContenantsFiltresTries();
+
+  const enteteHtml = COLONNES_CONTENANTS.map(col=>
+    `<th class="sortable" onclick="trierContenants('${col.key}')">${col.label}${flecheTri(col.key)}</th>`
+  ).join('') + '<th></th>';
 
   if(rows.length === 0){
-    el.innerHTML = '<div class="empty">Aucun contenant ne correspond à ces critères.</div>';
+    el.innerHTML = `<table><thead><tr>${enteteHtml}</tr></thead></table><div class="empty">Aucun contenant ne correspond à ces critères.</div>`;
     return;
   }
 
-  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Catégorie</th><th>Statut</th><th>Emplacement</th><th>Créé le</th><th></th></tr></thead><tbody>';
+  let html = `<table><thead><tr>${enteteHtml}</tr></thead><tbody>`;
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
     const t = TYPES[c.typeLettre];
