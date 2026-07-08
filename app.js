@@ -26,6 +26,8 @@ let CATEGORIES = {};   // { id: {id, nom, couleur} }
 let unsubTypes = null, unsubEmp = null, unsubCont = null, unsubCat = null;
 
 let typePhotoBase64 = null; // photo en attente pour le nouveau type (aperçu avant "Ajouter")
+let cassePhotoBase64 = null; // photo en attente pour la déclaration de casse en cours
+let historiqueCourant = []; // historique actuellement affiché dans la modale (pour retrouver une photo par index)
 
 /* ===================================================================
    DÉCONNEXION AUTOMATIQUE POUR INACTIVITÉ
@@ -413,13 +415,20 @@ function effacerPhotoType(){
   document.getElementById('type-photo-preview-wrap').style.display = 'none';
 }
 
+// Ouverture générique de la modale photo (réutilisée par les types, les
+// déclarations de casse et l'historique d'un contenant)
+function ouvrirPhotoGenerique(src, titre){
+  if(!src) return;
+  document.getElementById('modal-photo-title').textContent = titre;
+  document.getElementById('modal-photo-img').src = src;
+  document.getElementById('modal-photo').classList.add('active');
+}
+
 // Ouvre la photo d'un type existant en grand (modale)
 function ouvrirPhotoType(lettre){
   const t = TYPES[lettre];
   if(!t || !t.photo) return;
-  document.getElementById('modal-photo-title').textContent = 'Photo — Type ' + lettre;
-  document.getElementById('modal-photo-img').src = t.photo;
-  document.getElementById('modal-photo').classList.add('active');
+  ouvrirPhotoGenerique(t.photo, 'Photo — Type ' + lettre);
 }
 
 function closePhotoModal(){
@@ -428,6 +437,42 @@ function closePhotoModal(){
 document.getElementById('modal-photo').addEventListener('click', e=>{
   if(e.target.id === 'modal-photo') closePhotoModal();
 });
+
+/* --- Photo du contenant lors de la déclaration de casse ---
+   Même principe que la photo de type : compression côté client, gardée
+   en mémoire (cassePhotoBase64) jusqu'au clic sur "Déclarer cassé". */
+function previewPhotoCasse(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  redimensionnerImage(file).then(base64=>{
+    cassePhotoBase64 = base64;
+    document.getElementById('casse-photo-preview').src = base64;
+    document.getElementById('casse-photo-preview-wrap').style.display = 'flex';
+  }).catch(()=> toast("Impossible de lire cette image.", 'err'));
+}
+
+function effacerPhotoCasse(){
+  cassePhotoBase64 = null;
+  const input = document.getElementById('casse-photo');
+  if(input) input.value = '';
+  const wrap = document.getElementById('casse-photo-preview-wrap');
+  if(wrap) wrap.style.display = 'none';
+}
+
+// Photo actuellement associée à un contenant cassé (champ photoCasse)
+function ouvrirPhotoCasse(identifiant){
+  const c = CONTENANTS[identifiant];
+  if(!c || !c.photoCasse) return;
+  ouvrirPhotoGenerique(c.photoCasse, 'Photo — Contenant ' + identifiant);
+}
+
+// Photo rattachée à une entrée précise de l'historique (par index dans
+// le tableau historiqueCourant affiché dans la modale Historique)
+function ouvrirPhotoHistorique(idx){
+  const h = historiqueCourant[idx];
+  if(!h || !h.photo) return;
+  ouvrirPhotoGenerique(h.photo, 'Photo historique');
+}
 
 /* ===================================================================
    CATÉGORIES DE CONTENANTS
@@ -914,6 +959,7 @@ function creerContenant(btn){
       tx.set(ref, {
         identifiant, typeLettre, statut: 'en_service',
         emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null,
+        photoCasse: null,
         historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant'}]
       });
 
@@ -1326,6 +1372,9 @@ function lookupContenant(){
 
   let actionsHtml = '';
   if(c.statut === 'en_service'){
+    // Réinitialise la photo en attente à chaque nouvelle recherche, pour
+    // ne pas réutiliser par erreur la photo d'un contenant précédent.
+    cassePhotoBase64 = null;
     actionsHtml = `
       <div class="form-row" style="margin-top:14px;">
         <div>
@@ -1336,6 +1385,17 @@ function lookupContenant(){
           <label class="small" for="casse-commentaire">Commentaire</label>
           <input type="text" id="casse-commentaire" placeholder="Facultatif">
         </div>
+      </div>
+      <div class="form-row" style="margin-top:12px;">
+        <div>
+          <label class="small" for="casse-photo">Photo du contenant cassé</label>
+          <input type="file" id="casse-photo" accept="image/*" capture="environment" onchange="previewPhotoCasse(event)">
+        </div>
+        <div id="casse-photo-preview-wrap" style="display:none; align-items:center; gap:10px;">
+          <img id="casse-photo-preview" alt="Aperçu photo casse" style="max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--line); object-fit:cover;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="effacerPhotoCasse()">Retirer</button>
+        </div>
+        <div style="flex:1;"></div>
         <div style="flex:0;">
           <button class="btn btn-danger" onclick="declarerCasse(this)">Déclarer cassé</button>
         </div>
@@ -1358,12 +1418,19 @@ function lookupContenant(){
     actionsHtml = '<p class="sub" style="margin-top:14px;">Ce contenant est réformé, aucune action disponible.</p>';
   }
 
+  // Photo actuellement associée à la casse en cours, affichée en lecture
+  // seule dans le résumé (uniquement si le contenant est cassé).
+  const photoCasseHtml = (c.statut === 'casse' && c.photoCasse)
+    ? `<div class="row"><span>Photo</span><span><img src="${c.photoCasse}" class="type-thumb" onclick="ouvrirPhotoCasse('${c.identifiant}')" alt="Photo contenant cassé"></span></div>`
+    : '';
+
   resultEl.innerHTML = `
     <div class="lookup-result">
       <div class="row"><span>Identifiant</span><span class="mono">${c.identifiant}</span></div>
       <div class="row"><span>Type</span><span>${c.typeLettre}</span></div>
       <div class="row"><span>Statut actuel</span><span>${libelleStatut(c.statut)}</span></div>
       <div class="row"><span>Emplacement actuel</span><span>${c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—'}</span></div>
+      ${photoCasseHtml}
       ${actionsHtml}
     </div>`;
 }
@@ -1375,17 +1442,21 @@ function declarerCasse(btn){
   if(!empId){ toast("Sélectionne un emplacement de réparation.", 'err'); return; }
 
   const now = firebase.firestore.Timestamp.now();
+  const photo = cassePhotoBase64 || null;
   setBtnLoading(btn, 'Enregistrement…');
   db.collection('contenants').doc(contenantCourant.identifiant).update({
     statut: 'casse',
     emplacementId: empId,
     dateCasse: now,
+    photoCasse: photo,
     historique: firebase.firestore.FieldValue.arrayUnion({
       date: now, action: 'casse', statut: 'casse', emplacementId: empId,
-      commentaire: commentaire || 'Déposé sur emplacement de réparation'
+      commentaire: commentaire || 'Déposé sur emplacement de réparation',
+      photo: photo
     })
   }).then(()=>{
     toast("Contenant déclaré cassé et déposé.", 'ok');
+    cassePhotoBase64 = null;
     document.getElementById('lookup-id').value = '';
     document.getElementById('lookup-result').innerHTML = '';
     document.getElementById('lookup-id').focus();
@@ -1402,6 +1473,7 @@ function marquerRepare(btn){
     statut: 'en_service',
     emplacementId: null,
     dateReparation: now,
+    photoCasse: null,
     historique: firebase.firestore.FieldValue.arrayUnion({
       date: now, action: 'reparation', statut: 'en_service', emplacementId: null,
       commentaire: commentaire || 'Réparé, remis en service'
@@ -1443,16 +1515,21 @@ function ouvrirHistorique(identifiant){
   if(!c) return;
   document.getElementById('modal-title').textContent = 'Historique — ' + identifiant;
   const hist = (c.historique || []).slice().sort((a,b)=> (b.date?.seconds||0)-(a.date?.seconds||0));
+  historiqueCourant = hist; // conservé pour retrouver une photo par index au clic
   let html = '';
   if(hist.length === 0){
     html = '<div class="empty">Aucun historique disponible.</div>';
   } else {
-    hist.forEach(h=>{
+    hist.forEach((h, idx)=>{
       const emp = h.emplacementId && EMPLACEMENTS[h.emplacementId] ? EMPLACEMENTS[h.emplacementId].nom : null;
+      const photoHtml = h.photo
+        ? `<img src="${h.photo}" class="type-thumb" style="margin-top:6px;" onclick="ouvrirPhotoHistorique(${idx})" alt="Photo historique">`
+        : '';
       html += `<div class="hist-item">
         <div class="date">${formatDate(h.date)}</div>
         <div>${libelleStatut(h.statut)} ${emp ? '— ' + emp : ''}</div>
         <div style="color:var(--ink-soft);">${h.commentaire || ''}</div>
+        ${photoHtml}
       </div>`;
     });
   }
