@@ -19,6 +19,9 @@
 <!-- jsPDF : génération du book PDF des types de contenants -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+<!-- SheetJS : génération de fichiers Excel (.xlsx) côté client -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -146,7 +149,7 @@
           <select id="filter-categorie" onchange="renderContenants()">
             <option value="">Toutes les catégories</option>
           </select>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="exporterContenantsCSV()">⭳ Exporter CSV</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="exporterContenantsExcel()">⭳ Exporter Excel</button>
         </div>
         <p class="sub" style="margin-top:-8px; margin-bottom:12px;"></p>
         <div id="contenants-table"></div>
