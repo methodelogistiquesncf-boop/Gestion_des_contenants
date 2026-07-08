@@ -1010,55 +1010,51 @@ function flecheTri(colonne){
 }
 
 /* ===================================================================
-   EXPORT CSV DES CONTENANTS
+   EXPORT EXCEL DES CONTENANTS
    Exporte exactement la liste actuellement filtrée/triée à l'écran,
    pas l'intégralité de la base : ce que l'utilisateur voit est ce
-   qu'il exporte.
+   qu'il exporte. Génère un vrai fichier .xlsx (via SheetJS), avec
+   en-têtes mis en forme et largeurs de colonnes adaptées.
    =================================================================== */
-function echapperCSV(valeur){
-  const str = String(valeur ?? '');
-  if(/[",;\n]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
-  return str;
-}
-
-function exporterContenantsCSV(){
-  const lignes = document.querySelectorAll('#contenants-table tbody tr');
-  if(lignes.length === 0){ toast("Aucun contenant à exporter avec ces filtres.", 'err'); return; }
-
+function exporterContenantsExcel(){
   const rows = obtenirContenantsFiltresTries();
   if(rows.length === 0){ toast("Aucun contenant à exporter avec ces filtres.", 'err'); return; }
-
-  const entetes = ['Identifiant', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];
-  const lignesCSV = [entetes.join(';')];
 
   const libelleStatutTexte = statut => ({
     en_service: 'En service', casse: 'Cassé', reforme: 'Réformé'
   }[statut] || statut);
 
-  rows.forEach(c=>{
+  const entetes = ['Identifiant', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];
+  const donnees = rows.map(c=>{
     const t = TYPES[c.typeLettre];
     const cat = t && t.categorieId ? CATEGORIES[t.categorieId] : null;
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '';
-    lignesCSV.push([
-      echapperCSV(c.identifiant),
-      echapperCSV(c.typeLettre),
-      echapperCSV(cat ? cat.nom : ''),
-      echapperCSV(libelleStatutTexte(c.statut)),
-      echapperCSV(emp),
-      echapperCSV(formatDate(c.dateCreation))
-    ].join(';'));
+    return [
+      c.identifiant,
+      c.typeLettre || '',
+      cat ? cat.nom : '',
+      libelleStatutTexte(c.statut),
+      emp,
+      formatDate(c.dateCreation)
+    ];
   });
 
-  // \ufeff (BOM) en tête pour qu'Excel reconnaisse l'UTF-8 (accents) sans corruption.
-  const blob = new Blob(['\ufeff' + lignesCSV.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'contenants-' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const feuille = XLSX.utils.aoa_to_sheet([entetes, ...donnees]);
+
+  // Largeurs de colonnes adaptées au contenu
+  feuille['!cols'] = [
+    { wch: 22 }, // Identifiant
+    { wch: 8 },  // Type
+    { wch: 16 }, // Catégorie
+    { wch: 12 }, // Statut
+    { wch: 22 }, // Emplacement
+    { wch: 18 }  // Créé le
+  ];
+
+  const classeur = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(classeur, feuille, 'Contenants');
+  XLSX.writeFile(classeur, 'contenants-' + new Date().toISOString().slice(0,10) + '.xlsx');
+
   toast(rows.length + " contenant(s) exporté(s).", 'ok');
 }
 
