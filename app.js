@@ -749,9 +749,9 @@ function renderTypes(){
       <td>${photoHtml}</td>
       <td class="mono"><strong>${t.lettre}</strong></td>
       <td>${badgeCategorie(t.categorieId)}</td>
-      <td>${t.longueur} mm</td>
-      <td>${t.largeur} mm</td>
-      <td>${t.hauteur} mm</td>
+      <td>${t.longueur} cm</td>
+      <td>${t.largeur} cm</td>
+      <td>${t.hauteur} cm</td>
       <td>${t.description || '—'}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-ghost btn-sm" onclick="ouvrirEditType('${l}')">Modifier</button>
@@ -765,7 +765,7 @@ function renderTypes(){
 
 function renderSelectTypes(){
   const lettres = Object.keys(TYPES).sort();
-  const opts = lettres.map(l=> `<option value="${l}">${l} — ${TYPES[l].description || (TYPES[l].longueur+'×'+TYPES[l].largeur+'×'+TYPES[l].hauteur+' mm')}</option>`).join('');
+  const opts = lettres.map(l=> `<option value="${l}">${l} — ${TYPES[l].description || (TYPES[l].longueur+'×'+TYPES[l].largeur+'×'+TYPES[l].hauteur+' cm')}</option>`).join('');
 
   const selNew = document.getElementById('new-type');
   selNew.innerHTML = lettres.length ? opts : '<option value="">Aucun type — crée-en un d\'abord</option>';
@@ -1533,9 +1533,9 @@ async function genererBookPDF(){
     y += 7;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.text('Longueur : ' + (t.longueur || 0) + ' mm', 15, y); y += 6;
-    doc.text('Largeur : ' + (t.largeur || 0) + ' mm', 15, y); y += 6;
-    doc.text('Hauteur : ' + (t.hauteur || 0) + ' mm', 15, y); y += 10;
+    doc.text('Longueur : ' + (t.longueur || 0) + ' cm', 15, y); y += 6;
+    doc.text('Largeur : ' + (t.largeur || 0) + ' cm', 15, y); y += 6;
+    doc.text('Hauteur : ' + (t.hauteur || 0) + ' cm', 15, y); y += 10;
 
     // Description
     if (t.description) {
