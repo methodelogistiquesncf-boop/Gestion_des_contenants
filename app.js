@@ -1478,8 +1478,29 @@ document.getElementById('modal-historique').addEventListener('click', e=>{
    description, catégorie). Aucun appel serveur supplémentaire : tout
    est déjà en mémoire grâce aux listeners Firestore.
    =================================================================== */
+// Construit l'ordre des types pour le book PDF : regroupés par catégorie
+// (triées alphabétiquement, "Non catégorisé" toujours en dernier), puis
+// triés par lettre croissante à l'intérieur de chaque catégorie. Ainsi les
+// types d'une même catégorie se suivent toujours dans le PDF au lieu
+// d'être mélangés par un simple tri alphabétique global des lettres.
+function obtenirOrdreTypesPourBook(){
+  const catIds = Object.keys(CATEGORIES).sort((a,b)=> CATEGORIES[a].nom.localeCompare(CATEGORIES[b].nom));
+
+  const groupes = catIds.map(id=> ({id, nom: CATEGORIES[id].nom}));
+  groupes.push({id: null, nom: 'Non catégorisé'});
+
+  let ordre = [];
+  groupes.forEach(g=>{
+    const lettresGroupe = Object.keys(TYPES)
+      .filter(l=> (TYPES[l].categorieId || null) === g.id)
+      .sort();
+    ordre = ordre.concat(lettresGroupe);
+  });
+  return ordre;
+}
+
 async function genererBookPDF(){
-  const lettres = Object.keys(TYPES).sort();
+  const lettres = obtenirOrdreTypesPourBook();
   if(lettres.length === 0){ toast("Aucun type à exporter.", 'err'); return; }
 
   toast("Génération du book PDF…", '');
