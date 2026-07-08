@@ -845,6 +845,39 @@ function supprimerEmplacement(id){
     .catch(err=> toast("Erreur : " + err.message, 'err'));
 }
 
+function ouvrirEditEmplacement(id){
+  const e = EMPLACEMENTS[id];
+  if(!e) return;
+  document.getElementById('edit-emp-id').value = id;
+  document.getElementById('edit-emp-nom').value = e.nom || '';
+  document.getElementById('edit-emp-desc').value = e.description || '';
+  document.getElementById('modal-edit-emplacement').classList.add('active');
+}
+
+function closeEditEmplacementModal(){
+  document.getElementById('modal-edit-emplacement').classList.remove('active');
+}
+document.getElementById('modal-edit-emplacement').addEventListener('click', e=>{
+  if(e.target.id === 'modal-edit-emplacement') closeEditEmplacementModal();
+});
+
+function enregistrerEditEmplacement(btn){
+  const id = document.getElementById('edit-emp-id').value;
+  const nom = document.getElementById('edit-emp-nom').value.trim();
+  const description = document.getElementById('edit-emp-desc').value.trim();
+
+  if(!nom){ toast("Indique un nom d'emplacement.", 'err'); return; }
+
+  setBtnLoading(btn, 'Enregistrement…');
+  db.collection('emplacements').doc(id).update({nom, description}).then(()=>{
+    toast("Emplacement mis à jour.", 'ok');
+    closeEditEmplacementModal();
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
+}
+
+
+
 function renderEmplacements(){
   const el = document.getElementById('emplacements-table');
   const ids = Object.keys(EMPLACEMENTS);
@@ -858,7 +891,10 @@ function renderEmplacements(){
     html += `<tr>
       <td><strong>${e.nom}</strong></td>
       <td>${e.description || '—'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="supprimerEmplacement('${id}')">Supprimer</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="ouvrirEditEmplacement('${id}')">Modifier</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerEmplacement('${id}')">Supprimer</button>
+      </td>
     </tr>`;
   });
   html += '</tbody></table>';
