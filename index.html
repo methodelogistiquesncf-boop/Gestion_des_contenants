@@ -424,6 +424,29 @@
   </div>
 </div>
 
+  <!-- ---------- MODALE ÉDITION EMPLACEMENT ---------- -->
+<div class="modal-backdrop" id="modal-edit-emplacement">
+  <div class="modal" style="max-width:420px;">
+    <span class="close-x" onclick="closeEditEmplacementModal()">✕</span>
+    <h3>Modifier l'emplacement</h3>
+    <input type="hidden" id="edit-emp-id">
+
+    <div class="field">
+      <label for="edit-emp-nom">Nom</label>
+      <input type="text" id="edit-emp-nom" placeholder="Ex: Zone réparation A3">
+    </div>
+    <div class="field">
+      <label for="edit-emp-desc">Description</label>
+      <input type="text" id="edit-emp-desc" placeholder="Facultatif">
+    </div>
+
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeEditEmplacementModal()">Annuler</button>
+      <button class="btn btn-primary" id="btn-edit-emplacement" onclick="enregistrerEditEmplacement(this)">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ---------- MODALE MOT DE PASSE OUBLIÉ ---------- -->
 <div class="modal-backdrop" id="modal-forgot">
   <div class="modal" style="max-width:400px;">
