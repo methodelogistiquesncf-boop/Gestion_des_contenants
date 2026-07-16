@@ -318,8 +318,12 @@ input[type=file]{
 .stat-bar-fill.info{background:var(--neutral-st);}
 
 .barcode-print-zone{
-  display:flex; justify-content:center; align-items:center;
-  padding:24px; background:#fff;
+  display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start;
+  gap:16px; padding:24px; background:#fff;
+}
+.barcode-label{
+  border:1px dashed var(--line); border-radius:6px; padding:8px;
+  break-inside:avoid; page-break-inside:avoid;
 }
 
 /* ---------- Photo des types de contenants ---------- */
