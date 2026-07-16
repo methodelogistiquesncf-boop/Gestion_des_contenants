@@ -354,33 +354,48 @@ input[type=file]{
   }
   #barcode-modal-actions{ display:none; }
 
-  @page{ size:A4 portrait; margin:0; }
+  /* IMPORTANT : on NE PEUT PAS demander margin:0 ici. La plupart des
+     imprimantes physiques ont une marge matérielle incompressible
+     (quelques mm sur chaque bord) qu'elles ne savent pas imprimer,
+     même si la CSS demande du plein-bord. Quand ça arrive, le pilote
+     d'impression décale/recadre TOUT le contenu pour rester dans sa
+     vraie zone imprimable — ce qui donnait l'impression d'une
+     étiquette "décentrée" et provoquait une page supplémentaire
+     (le contenu recadré débordait sur une 3e feuille).
+     En réservant une vraie marge de page ici, et en dimensionnant les
+     étiquettes par rapport à cette zone imprimable réelle (et non par
+     rapport aux 210 × 297 mm bruts de la feuille), tout reste centré
+     quel que soit l'imprimante. */
+  @page{ size:A4 portrait; margin:6mm; }
+
+  html, body{ height:100%; margin:0; padding:0; }
 
   /* La modale sert de cadre à l'écran (largeur limitée, padding, ombre) :
      à l'impression on la remet à plat pour laisser les étiquettes occuper
-     toute la largeur de la feuille A4. */
+     toute la largeur de la zone imprimable. */
   .modal{
     display:block; max-width:none; width:100%; max-height:none; overflow:visible;
     padding:0; margin:0; border-radius:0; box-shadow:none;
   }
   .modal h3, .modal .close-x{ display:none; }
 
-  /* Chaque étiquette = une vraie demi-page A4 verticale (format A5
-     paysage, 210 × 148,5 mm) ; deux étiquettes empilées remplissent
-     exactement une feuille A4. Saut de page toutes les 2 étiquettes. */
-  .barcode-print-zone{ display:block; padding:0; gap:0; width:210mm; }
+  /* Zone imprimable réelle une fois la marge de 6mm de @page retirée :
+     210 - 2*6 = 198mm de large, 297 - 2*6 = 285mm de haut.
+     Chaque étiquette = une demi-page verticale (198 × 142,5 mm) ;
+     deux étiquettes empilées remplissent exactement une feuille A4.
+     Saut de page toutes les 2 étiquettes. */
+  .barcode-print-zone{ display:block; padding:0; gap:0; width:198mm; }
   .barcode-label{
-    width:210mm; height:148.5mm;
+    width:198mm; height:142.5mm;
     aspect-ratio:auto;
-    border:none; border-radius:0; padding:10mm;
+    border:none; border-radius:0; padding:8mm;
     box-sizing:border-box;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center;
   }
   /* Largeur explicite en mm (plutôt qu'un % relatif au conteneur flex,
-     peu fiable à l'impression) + marges automatiques : c'est ce qui
-     garantit un centrage horizontal ET vertical fiable de l'étiquette
-     sur la feuille A4. */
+     peu fiable à l'impression) + marges automatiques : centrage
+     horizontal ET vertical fiable de l'étiquette dans sa demi-page. */
   .barcode-label .barcode-svg-lot{
     width:170mm; max-width:170mm; height:auto;
     display:block; margin:0 auto;
