@@ -105,6 +105,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 15l4-5 3 3 5-7"></path></svg>
       Statistiques
     </button>
+    <button class="tab-btn" data-view="v-aide">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      Aide
+    </button>
   </nav>
 
   <main>
@@ -334,6 +338,94 @@
         <p class="sub">Quantité totale et répartition par statut, pour chaque catégorie de contenant.</p>
         <div id="stats-par-categorie"></div>
       </div>
+    </section>
+
+    <!-- ---------- VUE : AIDE ---------- -->
+    <section id="v-aide" class="view">
+
+      <div class="panel">
+        <h2>À quoi sert cette application ?</h2>
+        <p class="sub">
+          Suivi Contenants permet de suivre le cycle de vie des contenants en bois de l'atelier :
+          leur enregistrement, leur emplacement, les casses signalées et leurs réparations, ainsi
+          que des statistiques globales sur le parc. Chaque contenant est identifié par un code
+          unique, imprimé sous forme de code-barres et collé sur le contenant.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h2>📦 Onglet « Contenants »</h2>
+        <p class="sub">Enregistrer un nouveau contenant et consulter la liste complète du parc.</p>
+        <ul>
+          <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique, puis choisis son type et clique sur « Ajouter ».</li>
+          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut, type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
+          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (créations, casses, réparations, réformes, avec date et photo éventuelle).</li>
+          <li>Le bouton <strong>« Code-barres »</strong> d'une ligne imprime directement l'étiquette de ce contenant.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>🖨️ Onglet « Impression en masse »</h2>
+        <p class="sub">Générer et imprimer plusieurs étiquettes code-barres d'un coup.</p>
+        <ul>
+          <li>Choisis un type de contenant et une quantité, puis génère un lot de nouveaux identifiants.</li>
+          <li>Le lot peut être imprimé directement : une étiquette par contenant, prête à coller.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>🔧 Onglet « Casse / Réparation »</h2>
+        <p class="sub">Déclarer un contenant cassé, le réparer, ou le réformer définitivement.</p>
+        <ul>
+          <li><strong>Déclarer une casse</strong> : scanne ou saisis l'identifiant du contenant cassé, choisis un emplacement de réparation, ajoute un commentaire ou une photo si besoin, puis clique sur « Déclarer cassé ».</li>
+          <li>La liste <strong>« Contenants cassés »</strong> en dessous montre tous les contenants actuellement cassés. Cliquer sur une ligne ouvre directement sa fiche, sans avoir à ressaisir l'identifiant.</li>
+          <li>Depuis la fiche d'un contenant cassé : <strong>« Remettre en service »</strong> le repasse en statut normal, ou <strong>« Réformer définitivement »</strong> le retire du parc actif (action peu réversible).</li>
+          <li>Le badge rouge en haut à droite de l'écran (« X cassé(s) à traiter ») t'amène directement sur cet onglet.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>📐 Onglet « Types de contenants »</h2>
+        <p class="sub">Gérer les modèles de contenants (dimensions, description, photo, catégorie).</p>
+        <ul>
+          <li>Chaque type est identifié par une lettre et regroupe des dimensions (longueur/largeur/hauteur), une description et une photo optionnelles, et peut être rattaché à une catégorie.</li>
+          <li>Le bouton de génération de <strong>book PDF</strong> exporte un catalogue complet, une page par type, avec photo et caractéristiques.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>📍 Onglet « Emplacements »</h2>
+        <p class="sub">Gérer les zones où sont stockés ou réparés les contenants.</p>
+        <ul>
+          <li>Un emplacement (nom + description) sert à savoir où se trouve chaque contenant, notamment pendant une réparation.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>🏷️ Onglet « Catégories »</h2>
+        <p class="sub">Regrouper les types de contenants par grande famille.</p>
+        <ul>
+          <li>Chaque catégorie a un nom et une couleur, utilisés notamment dans les filtres et les statistiques.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>📊 Onglet « Statistiques »</h2>
+        <p class="sub">Vue d'ensemble de l'état du parc.</p>
+        <ul>
+          <li>Répartition globale par statut (en service / cassé / réformé), et détail par type et par catégorie, avec taux de casse.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>ℹ️ Bon à savoir</h2>
+        <ul>
+          <li>La session se déconnecte automatiquement après <strong>8 heures d'inactivité</strong>.</li>
+          <li>Le mot de passe se change depuis le bouton en haut à droite de l'écran.</li>
+          <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
+        </ul>
+      </div>
+
     </section>
 
   </main>
