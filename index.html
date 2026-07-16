@@ -81,6 +81,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
       Contenants
     </button>
+    <button class="tab-btn" data-view="v-impression">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      Impression en masse
+    </button>
     <button class="tab-btn" data-view="v-casse">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
       Casse / Réparation
@@ -130,20 +134,6 @@
       </div>
 
       <div class="panel">
-        <h2>Impression d'étiquettes en masse</h2>
-        <p class="sub">Réserve d'un coup une série de numéros et imprime toutes les étiquettes correspondantes, à coller sur les contenants avant leur enregistrement individuel (au scan).</p>
-        <div class="form-row">
-          <div style="flex:0 0 120px; min-width:120px;">
-            <label class="small" for="lot-quantite">Quantité</label>
-            <input type="number" id="lot-quantite" min="1" max="100" value="10">
-          </div>
-          <div style="flex:0;">
-            <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
         <h2>Liste des contenants</h2>
         <p class="sub">Recherche et filtre l'ensemble des contenants suivis.</p>
         <div class="toolbar">
@@ -167,6 +157,23 @@
         </div>
         <p class="sub" style="margin-top:-8px; margin-bottom:12px;"></p>
         <div id="contenants-table"></div>
+      </div>
+    </section>
+
+    <!-- ---------- VUE : IMPRESSION EN MASSE ---------- -->
+    <section id="v-impression" class="view">
+      <div class="panel">
+        <h2>Impression d'étiquettes en masse</h2>
+        <p class="sub">Réserve d'un coup une série de numéros et imprime toutes les étiquettes correspondantes, à coller sur les contenants avant leur enregistrement individuel (au scan).</p>
+        <div class="form-row">
+          <div style="flex:0 0 120px; min-width:120px;">
+            <label class="small" for="lot-quantite">Quantité</label>
+            <input type="number" id="lot-quantite" min="1" max="100" value="10">
+          </div>
+          <div style="flex:0;">
+            <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
+          </div>
+        </div>
       </div>
     </section>
 
