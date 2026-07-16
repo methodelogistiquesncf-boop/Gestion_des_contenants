@@ -1321,7 +1321,12 @@ function imprimerLotCodeBarres(identifiants, imprimerDirectement=false){
     });
     // Fige les proportions dans le viewBox puis retire width/height figés
     // en px, pour laisser .barcode-svg-lot (CSS) piloter la taille réelle.
-    const w = svgEl.getAttribute('width'), h = svgEl.getAttribute('height');
+    // IMPORTANT : viewBox exige des nombres SANS unité. JsBarcode renvoie
+    // parfois ces attributs avec "px" (ex. "422px") — on l'enlève avant
+    // de construire le viewBox, sinon il est invalide, silencieusement
+    // ignoré par le navigateur, et le SVG perd tout ratio intrinsèque
+    // (c'était la vraie cause du mauvais centrage à l'impression).
+    const w = parseFloat(svgEl.getAttribute('width')), h = parseFloat(svgEl.getAttribute('height'));
     svgEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
     svgEl.removeAttribute('width');
     svgEl.removeAttribute('height');
