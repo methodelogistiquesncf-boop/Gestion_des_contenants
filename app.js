@@ -1308,7 +1308,7 @@ function imprimerCodeBarre(identifiant){
 function imprimerLotCodeBarres(identifiants, imprimerDirectement=false){
   const zone = document.getElementById('barcode-print-zone');
   zone.innerHTML = identifiants.map(id=>
-    `<div class="barcode-label"><svg class="barcode-svg-lot" data-id="${id}"></svg></div>`
+    `<div class="barcode-label"><div class="barcode-cell"><svg class="barcode-svg-lot" data-id="${id}"></svg></div></div>`
   ).join('');
   identifiants.forEach(id=>{
     const svgEl = zone.querySelector('svg[data-id="' + id + '"]');
