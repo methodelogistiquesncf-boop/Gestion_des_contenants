@@ -191,6 +191,9 @@ main{flex:1; padding:24px; max-width:1180px; width:100%; margin:0 auto;}
 .panel h2{margin:0 0 4px; font-size:16px; font-weight:800;}
 .panel .sub{margin:0 0 16px; font-size:12.5px; color:var(--ink-soft);}
 
+.panel ul{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:8px; font-size:13.5px; line-height:1.5; color:var(--ink);}
+.panel ul li strong{color:var(--ink);}
+.panel ul li::marker{color:var(--steel);}
 .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
 .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
 @media (max-width:720px){ .grid-2,.grid-3{grid-template-columns:1fr;} }
