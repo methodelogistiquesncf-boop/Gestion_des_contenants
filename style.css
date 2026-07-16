@@ -322,9 +322,14 @@ input[type=file]{
   gap:16px; padding:24px; background:#fff;
 }
 .barcode-label{
-  border:1px dashed var(--line); border-radius:6px; padding:8px;
+  border:1px dashed var(--line); border-radius:6px; padding:16px;
   break-inside:avoid; page-break-inside:avoid;
+  box-sizing:border-box;
+  display:flex; align-items:center; justify-content:center;
+  aspect-ratio: 210 / 148.5; /* proportions A5 (paysage) à l'écran */
+  width:min(90vw, 340px);
 }
+.barcode-svg-lot{ width:100%; height:auto; display:block; }
 
 /* ---------- Photo des types de contenants ---------- */
 .type-thumb{
@@ -339,6 +344,29 @@ input[type=file]{
   #modal-barcode, #modal-barcode *{ visibility:visible; }
   #modal-barcode{ position:absolute; top:0; left:0; width:100%; background:#fff; }
   #barcode-modal-actions{ display:none; }
+
+  @page{ size:A4 portrait; margin:0; }
+
+  /* La modale sert de cadre à l'écran (largeur limitée, padding, ombre) :
+     à l'impression on la remet à plat pour laisser les étiquettes occuper
+     toute la largeur de la feuille A4. */
+  .modal{
+    max-width:none; width:100%; max-height:none; overflow:visible;
+    padding:0; margin:0; border-radius:0; box-shadow:none;
+  }
+  .modal h3, .modal .close-x{ display:none; }
+
+  /* Chaque étiquette = une vraie demi-page A4 verticale (format A5
+     paysage, 210 × 148,5 mm) ; deux étiquettes empilées remplissent
+     exactement une feuille A4. Saut de page toutes les 2 étiquettes. */
+  .barcode-print-zone{ display:block; padding:0; gap:0; }
+  .barcode-label{
+    width:210mm; height:148.5mm;
+    aspect-ratio:auto;
+    border:none; border-radius:0; padding:10mm;
+  }
+  .barcode-label:nth-child(2n){ page-break-after:always; break-after:page; }
+  .barcode-label:last-child{ page-break-after:auto; break-after:auto; }
 }
 
 .badge-cat{
