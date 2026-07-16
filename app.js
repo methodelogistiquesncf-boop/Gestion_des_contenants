@@ -353,6 +353,7 @@ function attacherListenersFirestore(){
     snap.forEach(doc=> CONTENANTS[doc.id] = doc.data());
     renderContenants();
     renderStats();
+    renderCasseListe();
   }, err=> toast("Erreur de chargement des contenants : " + err.message, 'err'));
 
   unsubCat = db.collection('categoriesContenants').onSnapshot(snap=>{
@@ -1511,6 +1512,43 @@ function renderStatsParCategorie(){
    DÉCLARATION DE CASSE / RÉPARATION
    =================================================================== */
 let contenantCourant = null;
+
+// Liste de tous les contenants au statut "casse", affichée sous le
+// formulaire de recherche. Un clic sur une ligne pré-remplit
+// l'identifiant et ouvre directement la fiche de réparation, comme si
+// on l'avait scanné/saisi puis cliqué sur "Rechercher".
+function renderCasseListe(){
+  const el = document.getElementById('casse-liste-table');
+  if(!el) return;
+
+  const rows = Object.values(CONTENANTS)
+    .filter(c=> c.statut === 'casse')
+    .sort((a,b)=> (b.dateCasse?.seconds||0) - (a.dateCasse?.seconds||0));
+
+  if(rows.length === 0){
+    el.innerHTML = '<div class="empty">Aucun contenant cassé actuellement.</div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Emplacement</th><th>Depuis le</th></tr></thead><tbody>';
+  rows.forEach(c=>{
+    const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
+    html += `<tr class="clickable" onclick="ouvrirFicheDepuisListeCasse('${c.identifiant}')">
+      <td class="mono">${c.identifiant}</td>
+      <td>${c.typeLettre}</td>
+      <td>${emp}</td>
+      <td>${formatDate(c.dateCasse)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function ouvrirFicheDepuisListeCasse(identifiant){
+  document.getElementById('lookup-id').value = identifiant;
+  lookupContenant();
+  document.getElementById('lookup-result').scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 function lookupContenant(){
   const id = document.getElementById('lookup-id').value.trim();
