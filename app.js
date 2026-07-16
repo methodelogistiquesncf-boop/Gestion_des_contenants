@@ -969,16 +969,47 @@ const LOT_QUANTITE_MAX = 100;
 
 function reserverLotIdentifiants(quantite){
   const compteurRef = db.collection('compteurs').doc('contenants');
-  return db.runTransaction(tx=>{
-    return tx.get(compteurRef).then(compteurDoc=>{
-      let dernier = compteurDoc.exists ? compteurDoc.data().dernier : null;
-      const identifiants = [];
-      for(let i=0; i<quantite; i++){
-        dernier = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
-        identifiants.push(dernier);
-      }
-      tx.set(compteurRef, {dernier});
-      return identifiants;
+
+  // Si le compteur n'a jamais été initialisé (ex. des contenants créés/
+  // importés avant sa mise en place), repartir de IDENTIFIANT_INITIAL
+  // ferait entrer les numéros réservés en collision avec des contenants
+  // déjà enregistrés. On repère donc d'abord, hors transaction, le plus
+  // grand identifiant AU FORMAT AUTO (18 chiffres) réellement utilisé,
+  // pour servir de point de départ de secours si besoin. On ignore les
+  // identifiants scannés/saisis manuellement dans un autre format : les
+  // prendre en compte tronquerait la numérotation (incrementerIdentifiant
+  // continuerait sur leur longueur, pas sur 18 chiffres).
+  const pointDeDepartSecours = compteurRef.get().then(compteurDoc=>{
+    if(compteurDoc.exists) return null; // compteur déjà initialisé, pas besoin
+    return db.collection('contenants')
+      .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
+      .limit(50).get()
+      .then(snap=>{
+        const auto = snap.docs.find(d=> estIdentifiantAuto(d.id));
+        return auto ? auto.id : null;
+      });
+  });
+
+  return pointDeDepartSecours.then(secours=>{
+    return db.runTransaction(tx=>{
+      // Le compteur est relu ICI, dans la transaction, pour la décision
+      // définitive : ça protège contre une réservation concurrente
+      // pendant l'étape de secours ci-dessus. Le secours n'est utilisé
+      // que si le compteur est toujours absent au moment de la transaction.
+      return tx.get(compteurRef).then(compteurDoc=>{
+        let dernier = compteurDoc.exists ? compteurDoc.data().dernier : secours;
+        // Garde-fou : si la valeur récupérée (compteur ou secours) n'est
+        // pas au format 18 chiffres, on ignore et repart proprement de
+        // IDENTIFIANT_INITIAL plutôt que de propager une longueur invalide.
+        if(dernier && !estIdentifiantAuto(dernier)) dernier = null;
+        const identifiants = [];
+        for(let i=0; i<quantite; i++){
+          dernier = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
+          identifiants.push(dernier);
+        }
+        tx.set(compteurRef, {dernier});
+        return identifiants;
+      });
     });
   });
 }
