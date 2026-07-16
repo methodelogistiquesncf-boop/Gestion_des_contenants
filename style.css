@@ -368,11 +368,22 @@ input[type=file]{
   /* Chaque étiquette = une vraie demi-page A4 verticale (format A5
      paysage, 210 × 148,5 mm) ; deux étiquettes empilées remplissent
      exactement une feuille A4. Saut de page toutes les 2 étiquettes. */
-  .barcode-print-zone{ display:block; padding:0; gap:0; }
+  .barcode-print-zone{ display:block; padding:0; gap:0; width:210mm; }
   .barcode-label{
     width:210mm; height:148.5mm;
     aspect-ratio:auto;
     border:none; border-radius:0; padding:10mm;
+    box-sizing:border-box;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+  }
+  /* Largeur explicite en mm (plutôt qu'un % relatif au conteneur flex,
+     peu fiable à l'impression) + marges automatiques : c'est ce qui
+     garantit un centrage horizontal ET vertical fiable de l'étiquette
+     sur la feuille A4. */
+  .barcode-label .barcode-svg-lot{
+    width:170mm; max-width:170mm; height:auto;
+    display:block; margin:0 auto;
   }
   .barcode-label:nth-child(2n){ page-break-after:always; break-after:page; }
   .barcode-label:last-child{ page-break-after:auto; break-after:auto; }
