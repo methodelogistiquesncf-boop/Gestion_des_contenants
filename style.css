@@ -342,7 +342,16 @@ input[type=file]{
 @media print{
   body *{ visibility:hidden; }
   #modal-barcode, #modal-barcode *{ visibility:visible; }
-  #modal-barcode{ position:absolute; top:0; left:0; width:100%; background:#fff; }
+  /* display:block est essentiel ici : le fond de modale hérite de
+     .modal-backdrop.active{display:flex} + centrage, et un conteneur
+     flex ne paginate pas correctement du contenu sur plusieurs pages
+     à l'impression (Chrome tronque/déplace le contenu au lieu de le
+     répartir sur les pages suivantes). En repassant en display:block,
+     le flux normal des pages fonctionne. */
+  #modal-barcode{
+    display:block; position:static; align-items:unset; justify-content:unset;
+    width:100%; padding:0; background:#fff;
+  }
   #barcode-modal-actions{ display:none; }
 
   @page{ size:A4 portrait; margin:0; }
@@ -351,7 +360,7 @@ input[type=file]{
      à l'impression on la remet à plat pour laisser les étiquettes occuper
      toute la largeur de la feuille A4. */
   .modal{
-    max-width:none; width:100%; max-height:none; overflow:visible;
+    display:block; max-width:none; width:100%; max-height:none; overflow:visible;
     padding:0; margin:0; border-radius:0; box-shadow:none;
   }
   .modal h3, .modal .close-x{ display:none; }
