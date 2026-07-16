@@ -354,18 +354,10 @@ input[type=file]{
   }
   #barcode-modal-actions{ display:none; }
 
-  /* IMPORTANT : on NE PEUT PAS demander margin:0 ici. La plupart des
-     imprimantes physiques ont une marge matérielle incompressible
-     (quelques mm sur chaque bord) qu'elles ne savent pas imprimer,
-     même si la CSS demande du plein-bord. Quand ça arrive, le pilote
-     d'impression décale/recadre TOUT le contenu pour rester dans sa
-     vraie zone imprimable — ce qui donnait l'impression d'une
-     étiquette "décentrée" et provoquait une page supplémentaire
-     (le contenu recadré débordait sur une 3e feuille).
-     En réservant une vraie marge de page ici, et en dimensionnant les
-     étiquettes par rapport à cette zone imprimable réelle (et non par
-     rapport aux 210 × 297 mm bruts de la feuille), tout reste centré
-     quel que soit l'imprimante. */
+  /* Petite marge de sécurité : certaines imprimantes ont une bordure
+     matérielle non imprimable de quelques mm. On dimensionne les
+     étiquettes par rapport à cette zone utile plutôt qu'aux 210 × 297 mm
+     bruts de la feuille. */
   @page{ size:A4 portrait; margin:6mm; }
 
   html, body{ height:100%; margin:0; padding:0; }
@@ -385,20 +377,31 @@ input[type=file]{
      deux étiquettes empilées remplissent exactement une feuille A4.
      Saut de page toutes les 2 étiquettes. */
   .barcode-print-zone{ display:block; padding:0; gap:0; width:198mm; }
+
+  /* Centrage via display:table / table-cell plutôt que flexbox.
+     Chrome a un bug connu où un conteneur flex ne se comporte pas
+     correctement à l'impression (contenu décalé et/ou débordant sur une
+     page supplémentaire au lieu d'être correctement centré/paginé) —
+     c'est d'ailleurs exactement pour ça que la modale elle-même est
+     repassée en display:block plus haut. Le modèle table est une
+     technique de centrage bien plus ancienne et fiable à l'impression :
+     .barcode-label est la "table", .barcode-cell la "cellule" centrée
+     avec vertical-align:middle + text-align:center. */
   .barcode-label{
+    display:table;
     width:198mm; height:142.5mm;
-    aspect-ratio:auto;
-    border:none; border-radius:0; padding:8mm;
+    border:none; border-radius:0; padding:0;
     box-sizing:border-box;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center;
   }
-  /* Largeur explicite en mm (plutôt qu'un % relatif au conteneur flex,
-     peu fiable à l'impression) + marges automatiques : centrage
-     horizontal ET vertical fiable de l'étiquette dans sa demi-page. */
+  .barcode-cell{
+    display:table-cell;
+    vertical-align:middle;
+    text-align:center;
+    padding:8mm;
+  }
   .barcode-label .barcode-svg-lot{
     width:170mm; max-width:170mm; height:auto;
-    display:block; margin:0 auto;
+    display:inline-block;
   }
   .barcode-label:nth-child(2n){ page-break-after:always; break-after:page; }
   .barcode-label:last-child{ page-break-after:auto; break-after:auto; }
