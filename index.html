@@ -130,6 +130,20 @@
       </div>
 
       <div class="panel">
+        <h2>Impression d'étiquettes en masse</h2>
+        <p class="sub">Réserve d'un coup une série de numéros et imprime toutes les étiquettes correspondantes, à coller sur les contenants avant leur enregistrement individuel (au scan).</p>
+        <div class="form-row">
+          <div style="flex:0 0 120px; min-width:120px;">
+            <label class="small" for="lot-quantite">Quantité</label>
+            <input type="number" id="lot-quantite" min="1" max="100" value="10">
+          </div>
+          <div style="flex:0;">
+            <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Liste des contenants</h2>
         <p class="sub">Recherche et filtre l'ensemble des contenants suivis.</p>
         <div class="toolbar">
@@ -326,9 +340,7 @@
   <div class="modal">
     <span class="close-x" onclick="closeBarcodeModal()">✕</span>
     <h3>Code-barres à imprimer</h3>
-    <div id="barcode-print-zone" class="barcode-print-zone">
-      <svg id="barcode-svg"></svg>
-    </div>
+    <div id="barcode-print-zone" class="barcode-print-zone"></div>
     <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-ghost" onclick="closeBarcodeModal()">Fermer</button>
       <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
