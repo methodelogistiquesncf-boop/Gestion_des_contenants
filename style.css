@@ -325,7 +325,7 @@ input[type=file]{
   border:1px dashed var(--line); border-radius:6px; padding:16px;
   break-inside:avoid; page-break-inside:avoid;
   box-sizing:border-box;
-  display:flex; align-items:center; justify-content:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
   aspect-ratio: 210 / 148.5; /* proportions A5 (paysage) à l'écran */
   width:min(90vw, 340px);
 }
@@ -349,7 +349,7 @@ input[type=file]{
      répartir sur les pages suivantes). En repassant en display:block,
      le flux normal des pages fonctionne. */
   #modal-barcode{
-    display:block; position:static; align-items:unset; justify-content:unset;
+    display:block; position:absolute; top:0; left:0; align-items:unset; justify-content:unset;
     width:100%; padding:0; background:#fff;
   }
   #barcode-modal-actions{ display:none; }
