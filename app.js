@@ -1262,21 +1262,31 @@ function imprimerCodeBarre(identifiant){
 }
 
 // Rend un code-barres par identifiant dans la zone d'impression, sous
-// forme d'étiquettes indépendantes (chacune protégée d'une coupure de
-// page à l'impression), puis ouvre la modale.
+// forme d'étiquettes indépendantes au format A5 (une étiquette = une
+// demi-page A4 verticale, deux étiquettes par feuille), puis ouvre la
+// modale. Le SVG est rendu en une taille fixe puis converti en viewBox
+// pour pouvoir être mis à l'échelle proprement en CSS, à l'écran comme
+// à l'impression.
 function imprimerLotCodeBarres(identifiants){
   const zone = document.getElementById('barcode-print-zone');
   zone.innerHTML = identifiants.map(id=>
     `<div class="barcode-label"><svg class="barcode-svg-lot" data-id="${id}"></svg></div>`
   ).join('');
   identifiants.forEach(id=>{
-    JsBarcode(zone.querySelector('svg[data-id="' + id + '"]'), id, {
+    const svgEl = zone.querySelector('svg[data-id="' + id + '"]');
+    JsBarcode(svgEl, id, {
       format: 'CODE128',
-      width: 2,
-      height: 60,
-      fontSize: 12,
-      margin: 6
+      width: 3,
+      height: 110,
+      fontSize: 22,
+      margin: 10
     });
+    // Fige les proportions dans le viewBox puis retire width/height figés
+    // en px, pour laisser .barcode-svg-lot (CSS) piloter la taille réelle.
+    const w = svgEl.getAttribute('width'), h = svgEl.getAttribute('height');
+    svgEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svgEl.removeAttribute('width');
+    svgEl.removeAttribute('height');
   });
   document.getElementById('modal-barcode').classList.add('active');
 }
