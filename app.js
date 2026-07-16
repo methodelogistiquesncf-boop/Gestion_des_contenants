@@ -956,6 +956,54 @@ function genererIdentifiant(){
   }).catch(err=> toast("Erreur de génération : " + err.message, 'err'));
 }
 
+/* --- Réservation d'un LOT d'identifiants pour impression en masse ---
+   Contrairement à genererIdentifiant() (simple aperçu, rien n'est écrit),
+   ici le compteur avance réellement pour tout le lot : c'est le prix à
+   payer pour pouvoir imprimer à l'avance une planche d'étiquettes qui
+   seront collées sur des contenants pas encore créés. Les contenants
+   eux-mêmes ne sont créés qu'au moment du scan/enregistrement individuel
+   (creerContenant), exactement comme pour un identifiant généré à l'unité.
+   Une seule lecture + une seule écriture sur le compteur, quelle que soit
+   la quantité : la boucle d'incrémentation se fait en mémoire. */
+const LOT_QUANTITE_MAX = 100;
+
+function reserverLotIdentifiants(quantite){
+  const compteurRef = db.collection('compteurs').doc('contenants');
+  return db.runTransaction(tx=>{
+    return tx.get(compteurRef).then(compteurDoc=>{
+      let dernier = compteurDoc.exists ? compteurDoc.data().dernier : null;
+      const identifiants = [];
+      for(let i=0; i<quantite; i++){
+        dernier = dernier ? incrementerIdentifiant(dernier) : IDENTIFIANT_INITIAL;
+        identifiants.push(dernier);
+      }
+      tx.set(compteurRef, {dernier});
+      return identifiants;
+    });
+  });
+}
+
+// Lit la quantité saisie, réserve le lot, puis lance l'impression groupée.
+function lancerImpressionLot(){
+  const qteInput = document.getElementById('lot-quantite');
+  const btn = document.getElementById('btn-lot-imprimer');
+  const quantite = parseInt(qteInput.value, 10);
+
+  if(!quantite || quantite < 1){ toast("Indique une quantité valide.", 'err'); return; }
+  if(quantite > LOT_QUANTITE_MAX){
+    toast("Maximum " + LOT_QUANTITE_MAX + " étiquettes par lot.", 'err');
+    return;
+  }
+
+  setBtnLoading(btn, 'Réservation…');
+  reserverLotIdentifiants(quantite).then(identifiants=>{
+    imprimerLotCodeBarres(identifiants);
+    const premier = identifiants[0], dernierNum = identifiants[identifiants.length - 1];
+    toast(quantite + " numéro(s) réservé(s) : " + premier + (quantite > 1 ? " → " + dernierNum : ''), 'ok');
+  }).catch(err=> toast("Erreur de réservation : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
+}
+
 // Vrai si l'identifiant a le format de la numérotation automatique
 // (18 chiffres). Un identifiant scanné/saisi manuellement dans un autre
 // format n'impacte pas le compteur.
@@ -1207,14 +1255,28 @@ function renderContenants(){
 /* ===================================================================
    IMPRESSION DE CODES-BARRES (JsBarcode)
    =================================================================== */
+// Conservée pour compatibilité (bouton "Code-barres" par ligne, génération
+// unitaire) : imprime simplement un lot d'un seul identifiant.
 function imprimerCodeBarre(identifiant){
-  const svg = document.getElementById('barcode-svg');
-  JsBarcode(svg, identifiant, {
-    format: 'CODE128',
-    width: 2,
-    height: 70,
-    fontSize: 14,
-    margin: 12
+  imprimerLotCodeBarres([identifiant]);
+}
+
+// Rend un code-barres par identifiant dans la zone d'impression, sous
+// forme d'étiquettes indépendantes (chacune protégée d'une coupure de
+// page à l'impression), puis ouvre la modale.
+function imprimerLotCodeBarres(identifiants){
+  const zone = document.getElementById('barcode-print-zone');
+  zone.innerHTML = identifiants.map(id=>
+    `<div class="barcode-label"><svg class="barcode-svg-lot" data-id="${id}"></svg></div>`
+  ).join('');
+  identifiants.forEach(id=>{
+    JsBarcode(zone.querySelector('svg[data-id="' + id + '"]'), id, {
+      format: 'CODE128',
+      width: 2,
+      height: 60,
+      fontSize: 12,
+      margin: 6
+    });
   });
   document.getElementById('modal-barcode').classList.add('active');
 }
