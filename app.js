@@ -1028,7 +1028,7 @@ function lancerImpressionLot(){
 
   setBtnLoading(btn, 'Réservation…');
   reserverLotIdentifiants(quantite).then(identifiants=>{
-    imprimerLotCodeBarres(identifiants);
+    imprimerLotCodeBarres(identifiants, true);
     const premier = identifiants[0], dernierNum = identifiants[identifiants.length - 1];
     toast(quantite + " numéro(s) réservé(s) : " + premier + (quantite > 1 ? " → " + dernierNum : ''), 'ok');
   }).catch(err=> toast("Erreur de réservation : " + err.message, 'err'))
@@ -1294,11 +1294,18 @@ function imprimerCodeBarre(identifiant){
 
 // Rend un code-barres par identifiant dans la zone d'impression, sous
 // forme d'étiquettes indépendantes au format A5 (une étiquette = une
-// demi-page A4 verticale, deux étiquettes par feuille), puis ouvre la
-// modale. Le SVG est rendu en une taille fixe puis converti en viewBox
-// pour pouvoir être mis à l'échelle proprement en CSS, à l'écran comme
-// à l'impression.
-function imprimerLotCodeBarres(identifiants){
+// demi-page A4 verticale, deux étiquettes par feuille). Le SVG est rendu
+// en une taille fixe puis converti en viewBox pour pouvoir être mis à
+// l'échelle proprement en CSS, à l'écran comme à l'impression.
+//
+// imprimerDirectement=true : ouvre directement la boîte de dialogue
+// d'impression du navigateur (utilisé pour "Réserver et imprimer le
+// lot", dont l'intitulé du bouton dit déjà explicitement l'intention —
+// une fenêtre de prévisualisation intermédiaire n'apportait rien de
+// plus que celle du navigateur). imprimerDirectement=false (par défaut)
+// affiche d'abord la modale, pour les impressions ponctuelles d'un seul
+// identifiant (bouton "Code-barres" d'une ligne, aperçu depuis "Générer").
+function imprimerLotCodeBarres(identifiants, imprimerDirectement=false){
   const zone = document.getElementById('barcode-print-zone');
   zone.innerHTML = identifiants.map(id=>
     `<div class="barcode-label"><svg class="barcode-svg-lot" data-id="${id}"></svg></div>`
@@ -1319,7 +1326,13 @@ function imprimerLotCodeBarres(identifiants){
     svgEl.removeAttribute('width');
     svgEl.removeAttribute('height');
   });
-  document.getElementById('modal-barcode').classList.add('active');
+  if(imprimerDirectement){
+    // Petit délai pour laisser le navigateur peindre les <svg> avant
+    // d'ouvrir la boîte de dialogue d'impression.
+    setTimeout(()=> window.print(), 50);
+  } else {
+    document.getElementById('modal-barcode').classList.add('active');
+  }
 }
 
 function closeBarcodeModal(){
