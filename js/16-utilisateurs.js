@@ -40,9 +40,23 @@ function assurerFicheUtilisateur(user){
    à la déconnexion, comme les autres listeners de l'app. */
 function attacherListenerMonRole(uid){
   unsubMonRole = db.collection('utilisateurs').doc(uid).onSnapshot(doc=>{
-    roleUtilisateurActuel = doc.exists ? (doc.data().role || '') : '';
+    const data = doc.exists ? doc.data() : {};
+    roleUtilisateurActuel = data.role || '';
     appliquerVisibiliteOngletUtilisateurs();
+    afficherNomUtilisateurConnecte(data);
   }, err=> console.error('Erreur listener rôle :', err));
+}
+
+// Affiche "Prénom Nom" dans le bandeau au lieu de l'e-mail, dès que ces
+// champs sont renseignés (voir la fiche utilisateur, éditable depuis
+// l'onglet Utilisateurs). Se met à jour en temps réel puisqu'il s'agit
+// du même listener que celui du rôle. Retombe sur l'e-mail tant que le
+// prénom et le nom ne sont pas encore renseignés.
+function afficherNomUtilisateurConnecte(data){
+  const el = document.getElementById('user-email');
+  if(!el) return;
+  const complet = [data.prenom, data.nom].filter(Boolean).join(' ').trim();
+  el.textContent = complet || (auth.currentUser ? auth.currentUser.email : '');
 }
 
 function appliquerVisibiliteOngletUtilisateurs(){
