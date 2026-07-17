@@ -137,7 +137,7 @@ function declarerCasse(btn){
     historique: firebase.firestore.FieldValue.arrayUnion({
       date: now, action: 'casse', statut: 'casse', emplacementId: empId,
       commentaire: commentaire || 'Déposé sur emplacement de réparation',
-      photo: photo
+      photo: photo, utilisateur: obtenirNomUtilisateurPourHistorique()
     })
   }).then(()=>{
     toast("Contenant déclaré cassé et déposé.", 'ok');
@@ -161,7 +161,8 @@ function marquerRepare(btn){
     photoCasse: null,
     historique: firebase.firestore.FieldValue.arrayUnion({
       date: now, action: 'reparation', statut: 'en_service', emplacementId: null,
-      commentaire: commentaire || 'Réparé, remis en service'
+      commentaire: commentaire || 'Réparé, remis en service',
+      utilisateur: obtenirNomUtilisateurPourHistorique()
     })
   }).then(()=>{
     toast("Contenant remis en service.", 'ok');
@@ -181,7 +182,8 @@ function marquerReforme(btn){
     statut: 'reforme',
     historique: firebase.firestore.FieldValue.arrayUnion({
       date: now, action: 'reforme', statut: 'reforme', emplacementId: contenantCourant.emplacementId || null,
-      commentaire: 'Réformé définitivement'
+      commentaire: 'Réformé définitivement',
+      utilisateur: obtenirNomUtilisateurPourHistorique()
     })
   }).then(()=>{
     toast("Contenant réformé.", 'ok');
