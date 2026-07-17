@@ -162,7 +162,7 @@ function creerContenant(btn){
         identifiant, typeLettre, statut: 'en_service',
         emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null,
         photoCasse: null,
-        historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant'}]
+        historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant', utilisateur: obtenirNomUtilisateurPourHistorique()}]
       });
 
       // On n'avance le compteur que si l'identifiant suit le format auto
