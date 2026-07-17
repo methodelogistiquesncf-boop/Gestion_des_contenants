@@ -370,8 +370,9 @@
         <ul>
           <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique, puis choisis son type et clique sur « Ajouter ».</li>
           <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut, type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
-          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (créations, casses, réparations, réformes, avec date et photo éventuelle).</li>
+          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (créations, casses, réparations, réformes, avec date, auteur de l'action et photo éventuelle).</li>
           <li>Le bouton <strong>« Code-barres »</strong> d'une ligne imprime directement l'étiquette de ce contenant.</li>
+          <li>Pour les comptes <strong>Administrateur</strong> : un bouton <strong>« Supprimer »</strong> apparaît sur chaque ligne pour effacer définitivement un contenant (et son historique).</li>
         </ul>
       </div>
 
@@ -379,8 +380,8 @@
         <h2>🖨️ Onglet « Impression en masse »</h2>
         <p class="sub">Générer et imprimer plusieurs étiquettes code-barres d'un coup.</p>
         <ul>
-          <li>Choisis un type de contenant et une quantité, puis génère un lot de nouveaux identifiants.</li>
-          <li>Le lot peut être imprimé directement : une étiquette par contenant, prête à coller.</li>
+          <li>Choisis une quantité, un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
+          <li>Le lot est imprimé directement : une étiquette par contenant, prête à coller.</li>
         </ul>
       </div>
 
@@ -432,11 +433,12 @@
         <h2>👤 Onglet « Utilisateurs »</h2>
         <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur — sert à gérer qui peut se connecter et avec quels droits.</p>
         <ul>
+          <li><strong>Compteur de numérotation automatique</strong> : affiche le dernier identifiant à 18 chiffres attribué, et permet de le forcer manuellement en cas de besoin (ex. correction d'une numérotation incohérente). À utiliser avec prudence : une valeur mal choisie peut provoquer des doublons.</li>
           <li><strong>Ajouter un utilisateur</strong> : saisis son adresse e-mail et clique sur « Créer le compte ». La personne reçoit un e-mail pour définir elle-même son mot de passe ; son compte apparaît dans la liste dès sa 1ère connexion.</li>
           <li><strong>Liste des utilisateurs</strong> : recense tous les comptes s'étant déjà connectés au moins une fois (impossible de lister un compte qui ne s'est jamais connecté).</li>
           <li><strong>Prénom / Nom</strong> : modifiables directement dans le tableau ; ils s'affichent ensuite dans le bandeau en haut de l'écran, à la place de l'adresse e-mail, pour la personne concernée.</li>
-          <li><strong>Rôle</strong> : « Administrateur » donne accès à cet onglet Utilisateurs ; « Utilisateur » (ou aucun rôle) n'y donne pas accès. Un administrateur peut changer n'importe quel rôle, y compris le sien.</li>
-          <li><strong>Supprimer</strong> : Suprime le compte.</li>
+          <li><strong>Rôle</strong> : « Administrateur » donne accès à cet onglet Utilisateurs (et au bouton « Supprimer » sur les contenants) ; « Utilisateur » (ou aucun rôle) n'y donne pas accès. Un administrateur peut changer n'importe quel rôle, y compris le sien.</li>
+          <li><strong>Supprimer</strong> : supprime la fiche du compte (le compte de connexion Firebase Auth lui-même n'est pas supprimé).</li>
         </ul>
       </div>
 
@@ -447,6 +449,7 @@
           <li>Le mot de passe se change depuis le bouton en haut à droite de l'écran.</li>
           <li>Le bandeau en haut à droite affiche ton prénom et ton nom dès qu'ils sont renseignés (onglet Utilisateurs) ; sinon, ton adresse e-mail s'affiche par défaut.</li>
           <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
+          <li>La suppression d'un contenant ou la modification du compteur (réservées aux administrateurs) sont <strong>définitives et irréversibles</strong>.</li>
         </ul>
       </div>
 
