@@ -68,6 +68,7 @@ auth.onAuthStateChanged(user=>{
     if(unsubCat) unsubCat();
     if(unsubMonRole) unsubMonRole();
     detacherListenerUtilisateurs();
+    detacherListenerCompteur();
     roleUtilisateurActuel = null;
     arreterSurveillanceInactivite();
     localStorage.removeItem(INACTIVITE_CLE);
