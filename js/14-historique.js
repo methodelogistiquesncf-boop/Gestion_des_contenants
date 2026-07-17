@@ -16,10 +16,14 @@ function ouvrirHistorique(identifiant){
       const photoHtml = h.photo
         ? `<img src="${h.photo}" class="type-thumb" style="margin-top:6px;" onclick="ouvrirPhotoHistorique(${idx})" alt="Photo historique">`
         : '';
+      const auteurHtml = h.utilisateur
+        ? `<div class="small" style="color:var(--ink-soft); margin-top:4px;">Par : ${h.utilisateur}</div>`
+        : '';
       html += `<div class="hist-item">
         <div class="date">${formatDate(h.date)}</div>
         <div>${libelleStatut(h.statut)} ${emp ? '— ' + emp : ''}</div>
         <div style="color:var(--ink-soft);">${h.commentaire || ''}</div>
+        ${auteurHtml}
         ${photoHtml}
       </div>`;
     });
