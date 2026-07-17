@@ -332,6 +332,14 @@ input[type=file]{
   aspect-ratio: 210 / 148.5; /* proportions A5 (paysage) à l'écran */
   width:min(90vw, 340px);
 }
+.barcode-cell{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; width:100%;
+}
+.barcode-title{
+  font-size:26px; font-weight:800; letter-spacing:0.5px; color:var(--ink);
+  text-align:center; word-break:break-word;
+}
 .barcode-svg-lot{ width:100%; height:auto; display:block; margin:0 auto; }
 
 /* ---------- Photo des types de contenants ---------- */
@@ -401,6 +409,11 @@ input[type=file]{
     vertical-align:middle;
     text-align:center;
     padding:8mm;
+  }
+  .barcode-title{
+    display:block;
+    font-size:16mm; font-weight:800; letter-spacing:1mm;
+    margin-bottom:6mm;
   }
   .barcode-label .barcode-svg-lot{
     width:170mm; max-width:170mm; height:auto;
