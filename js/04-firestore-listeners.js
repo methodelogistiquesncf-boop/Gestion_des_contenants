@@ -8,6 +8,13 @@ function attacherListenersFirestore(){
     renderTypes();
     renderSelectTypes();
     renderStatsParType();
+    // Le tableau des contenants affiche la catégorie de chaque ligne via
+    // TYPES[c.typeLettre].categorieId : si ce listener se déclenche après
+    // celui des contenants (ordre d'arrivée non garanti), un premier
+    // rendu de renderContenants() a déjà pu avoir lieu sans les types
+    // chargés, laissant "Non catégorisé" affiché à tort jusqu'à ce que
+    // l'utilisateur touche un filtre. On redessine donc ici aussi.
+    renderContenants();
   }, err=> toast("Erreur de chargement des types : " + err.message, 'err'));
 
   unsubEmp = db.collection('emplacements').onSnapshot(snap=>{
@@ -32,5 +39,9 @@ function attacherListenersFirestore(){
     renderSelectCategories();
     renderTypes();
     renderStatsParCategorie();
+    // Même raison que dans le listener des types ci-dessus : la colonne
+    // Catégorie du tableau des contenants dépend de CATEGORIES, qui peut
+    // arriver après le premier rendu de la liste des contenants.
+    renderContenants();
   }, err=> toast("Erreur de chargement des catégories : " + err.message, 'err'));
 }
