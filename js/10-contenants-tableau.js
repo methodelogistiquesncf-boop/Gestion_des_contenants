@@ -132,9 +132,13 @@ function renderContenants(){
   }
 
   let html = `<table><thead><tr>${enteteHtml}</tr></thead><tbody>`;
+  const estAdmin = (typeof roleUtilisateurActuel !== 'undefined') && roleUtilisateurActuel === 'Administrateur';
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
     const t = TYPES[c.typeLettre];
+    const btnSupprimer = estAdmin
+      ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); supprimerContenant('${c.identifiant}')">Supprimer</button>`
+      : '';
     html += `<tr class="clickable" onclick="ouvrirHistorique('${c.identifiant}')">
       <td class="mono">${c.identifiant}</td>
       <td>${c.typeLettre}</td>
@@ -142,7 +146,10 @@ function renderContenants(){
       <td>${libelleStatut(c.statut)}</td>
       <td>${emp}</td>
       <td>${formatDate(c.dateCreation)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); imprimerCodeBarre('${c.identifiant}')">Code-barres</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); imprimerCodeBarre('${c.identifiant}')">Code-barres</button>
+        ${btnSupprimer}
+      </td>
     </tr>`;
   });
   html += '</tbody></table>';
