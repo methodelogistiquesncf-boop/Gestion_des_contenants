@@ -1,6 +1,13 @@
 /* ===================================================================
    IMPRESSION DE CODES-BARRES (JsBarcode)
    =================================================================== */
+
+// Petit échappement local (le titre est un texte libre saisi par
+// l'utilisateur, injecté dans le HTML de la zone d'impression).
+function echapperHtmlBarcode(str){
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 // Conservée pour compatibilité (bouton "Code-barres" par ligne, génération
 // unitaire) : imprime simplement un lot d'un seul identifiant.
 function imprimerCodeBarre(identifiant){
@@ -20,10 +27,11 @@ function imprimerCodeBarre(identifiant){
 // plus que celle du navigateur). imprimerDirectement=false (par défaut)
 // affiche d'abord la modale, pour les impressions ponctuelles d'un seul
 // identifiant (bouton "Code-barres" d'une ligne, aperçu depuis "Générer").
-function imprimerLotCodeBarres(identifiants, imprimerDirectement=false){
+function imprimerLotCodeBarres(identifiants, imprimerDirectement=false, titre=''){
   const zone = document.getElementById('barcode-print-zone');
+  const titreHtml = titre ? `<div class="barcode-title">${echapperHtmlBarcode(titre)}</div>` : '';
   zone.innerHTML = identifiants.map(id=>
-    `<div class="barcode-label"><div class="barcode-cell"><svg class="barcode-svg-lot" data-id="${id}"></svg></div></div>`
+    `<div class="barcode-label"><div class="barcode-cell">${titreHtml}<svg class="barcode-svg-lot" data-id="${id}"></svg></div></div>`
   ).join('');
   identifiants.forEach(id=>{
     const svgEl = zone.querySelector('svg[data-id="' + id + '"]');
