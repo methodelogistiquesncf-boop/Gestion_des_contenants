@@ -29,6 +29,7 @@ function traduireErreurAuth(err){
     case 'auth/too-many-requests': return "Trop de tentatives. Réessaie dans quelques minutes.";
     case 'auth/weak-password': return "Le nouveau mot de passe est trop faible (6 caractères minimum).";
     case 'auth/requires-recent-login': return "Session trop ancienne : reconnecte-toi puis réessaie.";
+    case 'auth/email-already-in-use': return "Un compte existe déjà avec cette adresse e-mail.";
     default: return "Opération impossible (" + err.code + ").";
   }
 }
@@ -52,6 +53,10 @@ auth.onAuthStateChanged(user=>{
     document.getElementById('app').style.display = 'flex';
     document.getElementById('user-email').textContent = user.email;
     attacherListenersFirestore();
+    // Crée/actualise la fiche Firestore de l'utilisateur (voir
+    // 16-utilisateurs.js), puis se met à l'écoute de son rôle pour
+    // afficher ou masquer l'onglet Utilisateurs.
+    assurerFicheUtilisateur(user).finally(()=> attacherListenerMonRole(user.uid));
     enregistrerActivite();
     demarrerSurveillanceInactivite();
   } else {
@@ -61,6 +66,9 @@ auth.onAuthStateChanged(user=>{
     if(unsubEmp) unsubEmp();
     if(unsubCont) unsubCont();
     if(unsubCat) unsubCat();
+    if(unsubMonRole) unsubMonRole();
+    detacherListenerUtilisateurs();
+    roleUtilisateurActuel = null;
     arreterSurveillanceInactivite();
     localStorage.removeItem(INACTIVITE_CLE);
   }
