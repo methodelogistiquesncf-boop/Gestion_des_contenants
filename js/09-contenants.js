@@ -131,6 +131,52 @@ function estIdentifiantAuto(id){
   return typeof id === 'string' && id.length === IDENTIFIANT_LONGUEUR && /^[0-9]+$/.test(id);
 }
 
+/* --- Forçage manuel du compteur (administrateur) ---
+   Écrase directement le doc compteurs/contenants. Utilisé pour corriger
+   une numérotation incohérente (ex. après une reprise de données ou une
+   erreur de manipulation). Aucune protection particulière ici au-delà
+   du format 18 chiffres et de la confirmation : c'est un geste
+   volontairement "dangereux", réservé à l'onglet Utilisateurs
+   (déjà visible aux seuls administrateurs). */
+function enregistrerCompteurManuel(btn){
+  const input = document.getElementById('compteur-nouvelle-valeur');
+  const valeur = input.value.trim();
+
+  if(!estIdentifiantAuto(valeur)){
+    toast("La valeur doit comporter exactement 18 chiffres.", 'err');
+    return;
+  }
+  if(!confirm(
+    "Forcer le compteur à " + valeur + " ?\n\n" +
+    "Les prochains identifiants générés automatiquement repartiront de cette valeur. " +
+    "Si elle est inférieure ou égale à un identifiant déjà attribué, un doublon devient possible."
+  )) return;
+
+  setBtnLoading(btn, 'Enregistrement…');
+  db.collection('compteurs').doc('contenants').set({dernier: valeur}).then(()=>{
+    toast("Compteur mis à jour : " + valeur, 'ok');
+    input.value = '';
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
+}
+
+/* --- Suppression définitive d'un contenant (administrateur) ---
+   Supprime le document Firestore, y compris son historique. Le
+   compteur de numérotation n'est volontairement pas touché : même si
+   l'identifiant supprimé avait été généré automatiquement, il ne sera
+   jamais réattribué (évite toute confusion avec un contenant physique
+   qui porterait encore l'ancienne étiquette). */
+function supprimerContenant(identifiant){
+  if(!confirm(
+    "Supprimer définitivement le contenant " + identifiant + " ?\n\n" +
+    "Son historique complet sera perdu. Cette action est irréversible."
+  )) return;
+
+  db.collection('contenants').doc(identifiant).delete()
+    .then(()=> toast("Contenant " + identifiant + " supprimé.", 'ok'))
+    .catch(err=> toast("Erreur : " + err.message, 'err'));
+}
+
 /* --- Création d'un contenant avec vérification anti-doublon côté serveur ---
    On utilise une transaction plutôt qu'un simple .set() : elle relit le
    document au moment exact de l'écriture, donc même si le cache local
