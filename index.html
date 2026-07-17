@@ -186,7 +186,7 @@
             <input type="text" id="lot-titre" placeholder="Ex. NCC" maxlength="24">
           </div>
           <div style="flex:0;">
-            <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Aperçu et impression du lot</button>
+            <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
           </div>
         </div>
       </div>
@@ -380,8 +380,8 @@
         <h2>🖨️ Onglet « Impression en masse »</h2>
         <p class="sub">Générer et imprimer plusieurs étiquettes code-barres d'un coup.</p>
         <ul>
-          <li>Choisis une quantité et un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Aperçu et impression du lot ».</li>
-          <li>Une fenêtre d'<strong>aperçu</strong> s'ouvre avec les numéros à venir : à ce stade, rien n'est encore réservé. « Fermer » annule tout sans conséquence sur le compteur ; « Imprimer » réserve réellement les numéros puis lance l'impression.</li>
+          <li>Choisis une quantité, un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
+          <li>Le lot est imprimé directement : une étiquette par contenant, prête à coller.</li>
         </ul>
       </div>
 
@@ -514,11 +514,10 @@
   <div class="modal">
     <span class="close-x" onclick="closeBarcodeModal()">✕</span>
     <h3>Code-barres à imprimer</h3>
-    <p id="barcode-modal-note" class="sub" style="display:none; color:var(--attention);">Aperçu : ces numéros ne sont pas encore réservés. Ils ne le seront qu'au clic sur « Imprimer » ci-dessous — « Fermer » n'incrémente rien.</p>
     <div id="barcode-print-zone" class="barcode-print-zone"></div>
     <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn btn-ghost" onclick="closeBarcodeModal()">Fermer</button>
-      <button class="btn btn-primary" id="btn-imprimer-code-barre" onclick="gererClicImprimerModal(this)">Imprimer</button>
+      <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
     </div>
   </div>
 </div>
