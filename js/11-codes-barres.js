@@ -8,52 +8,6 @@ function echapperHtmlBarcode(str){
   return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* --- Aperçu d'un lot avant réservation réelle ---
-   Tant que cette variable est renseignée, la modale affiche des
-   numéros PROVISOIRES (simple lecture du compteur, rien n'est écrit en
-   base) : fermer la modale à ce stade n'a strictement aucun effet sur
-   le compteur. Ce n'est qu'au clic sur "Imprimer" que la réservation
-   réelle (transaction, voir reserverLotIdentifiants) a lieu, juste
-   avant l'impression. Remise à null dès que la modale n'est plus en
-   attente d'une telle confirmation (impression lancée, ou fermeture). */
-let lotEnAttenteConfirmation = null; // {quantite, titre} ou null
-
-// Ouvre la modale en mode "aperçu" pour un lot pas encore réservé.
-function ouvrirApercuLot(identifiantsApercu, quantite, titre){
-  lotEnAttenteConfirmation = { quantite, titre };
-  imprimerLotCodeBarres(identifiantsApercu, false, titre);
-  const note = document.getElementById('barcode-modal-note');
-  if(note) note.style.display = '';
-}
-
-// Point d'entrée unique du bouton "Imprimer" de la modale : réserve
-// d'abord si on est en mode aperçu de lot, sinon imprime directement
-// (cas d'un code-barres unitaire, jamais soumis à réservation ici).
-function gererClicImprimerModal(btn){
-  if(lotEnAttenteConfirmation){
-    confirmerEtImprimerLot(btn);
-  } else {
-    window.print();
-  }
-}
-
-function confirmerEtImprimerLot(btn){
-  const { quantite, titre } = lotEnAttenteConfirmation;
-  setBtnLoading(btn, 'Réservation…');
-  reserverLotIdentifiants(quantite).then(identifiants=>{
-    lotEnAttenteConfirmation = null;
-    const note = document.getElementById('barcode-modal-note');
-    if(note) note.style.display = 'none';
-    // Régénère la zone avec les numéros RÉELLEMENT réservés (peuvent
-    // différer de l'aperçu en cas de réservation concurrente entre-
-    // temps par un autre poste) puis imprime directement.
-    imprimerLotCodeBarres(identifiants, true, titre);
-    const premier = identifiants[0], dernierNum = identifiants[identifiants.length - 1];
-    toast(quantite + " numéro(s) réservé(s) : " + premier + (quantite > 1 ? " → " + dernierNum : ''), 'ok');
-  }).catch(err=> toast("Erreur de réservation : " + err.message, 'err'))
-    .finally(()=> clearBtnLoading(btn));
-}
-
 // Conservée pour compatibilité (bouton "Code-barres" par ligne, génération
 // unitaire) : imprime simplement un lot d'un seul identifiant.
 function imprimerCodeBarre(identifiant){
@@ -111,9 +65,6 @@ function imprimerLotCodeBarres(identifiants, imprimerDirectement=false, titre=''
 
 function closeBarcodeModal(){
   document.getElementById('modal-barcode').classList.remove('active');
-  lotEnAttenteConfirmation = null;
-  const note = document.getElementById('barcode-modal-note');
-  if(note) note.style.display = 'none';
 }
 document.getElementById('modal-barcode').addEventListener('click', e=>{
   if(e.target.id === 'modal-barcode') closeBarcodeModal();
