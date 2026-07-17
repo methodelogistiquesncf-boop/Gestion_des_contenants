@@ -18,6 +18,13 @@ let unsubUtilisateurs = null;
 let unsubMonRole = null;
 let roleUtilisateurActuel = null;
 
+// Nom affichable ("Prénom Nom", ou e-mail à défaut) de l'utilisateur
+// actuellement connecté. Tenu à jour par afficherNomUtilisateurConnecte
+// (appelée par le listener temps réel sur le rôle) et utilisé pour
+// horodater/nommer l'auteur de chaque action dans l'historique des
+// contenants (voir obtenirNomUtilisateurPourHistorique ci-dessous).
+let nomUtilisateurActuelPourHistorique = '';
+
 /* --- Fiche utilisateur créée/mise à jour à chaque connexion ---
    On ne touche jamais au champ "role" ici : c'est un administrateur
    qui l'attribue depuis cet onglet, pas l'utilisateur lui-même. */
@@ -51,12 +58,26 @@ function attacherListenerMonRole(uid){
 // champs sont renseignés (voir la fiche utilisateur, éditable depuis
 // l'onglet Utilisateurs). Se met à jour en temps réel puisqu'il s'agit
 // du même listener que celui du rôle. Retombe sur l'e-mail tant que le
-// prénom et le nom ne sont pas encore renseignés.
+// prénom et le nom ne sont pas encore renseignés. Alimente aussi
+// nomUtilisateurActuelPourHistorique, réutilisé pour tracer l'auteur de
+// chaque action dans l'historique des contenants.
 function afficherNomUtilisateurConnecte(data){
+  const complet = [data.prenom, data.nom].filter(Boolean).join(' ').trim();
+  nomUtilisateurActuelPourHistorique = complet || (auth.currentUser ? auth.currentUser.email : '');
   const el = document.getElementById('user-email');
   if(!el) return;
-  const complet = [data.prenom, data.nom].filter(Boolean).join(' ').trim();
-  el.textContent = complet || (auth.currentUser ? auth.currentUser.email : '');
+  el.textContent = nomUtilisateurActuelPourHistorique;
+}
+
+// Nom à enregistrer comme auteur d'une action d'historique (création,
+// casse, réparation, réforme...). Retombe sur l'e-mail du compte
+// connecté si la fiche prénom/nom n'a pas encore été chargée (ex. tout
+// début de session, avant le premier tick du listener de rôle), puis
+// sur "Inconnu" en tout dernier recours.
+function obtenirNomUtilisateurPourHistorique(){
+  return nomUtilisateurActuelPourHistorique
+    || (auth.currentUser ? auth.currentUser.email : '')
+    || 'Inconnu';
 }
 
 function appliquerVisibiliteOngletUtilisateurs(){
