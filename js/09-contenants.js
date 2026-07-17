@@ -104,8 +104,10 @@ function reserverLotIdentifiants(quantite){
 // Lit la quantité saisie, réserve le lot, puis lance l'impression groupée.
 function lancerImpressionLot(){
   const qteInput = document.getElementById('lot-quantite');
+  const titreInput = document.getElementById('lot-titre');
   const btn = document.getElementById('btn-lot-imprimer');
   const quantite = parseInt(qteInput.value, 10);
+  const titre = titreInput ? titreInput.value.trim() : '';
 
   if(!quantite || quantite < 1){ toast("Indique une quantité valide.", 'err'); return; }
   if(quantite > LOT_QUANTITE_MAX){
@@ -115,7 +117,7 @@ function lancerImpressionLot(){
 
   setBtnLoading(btn, 'Réservation…');
   reserverLotIdentifiants(quantite).then(identifiants=>{
-    imprimerLotCodeBarres(identifiants, true);
+    imprimerLotCodeBarres(identifiants, true, titre);
     const premier = identifiants[0], dernierNum = identifiants[identifiants.length - 1];
     toast(quantite + " numéro(s) réservé(s) : " + premier + (quantite > 1 ? " → " + dernierNum : ''), 'ok');
   }).catch(err=> toast("Erreur de réservation : " + err.message, 'err'))
