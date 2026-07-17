@@ -16,6 +16,7 @@ const ROLES_DISPONIBLES = ['Administrateur', 'Utilisateur'];
 let UTILISATEURS = {};
 let unsubUtilisateurs = null;
 let unsubMonRole = null;
+let unsubCompteur = null;
 let roleUtilisateurActuel = null;
 
 // Nom affichable ("Prénom Nom", ou e-mail à défaut) de l'utilisateur
@@ -88,8 +89,10 @@ function appliquerVisibiliteOngletUtilisateurs(){
 
   if(estAdmin){
     attacherListenerUtilisateurs();
+    attacherListenerCompteur();
   } else {
     detacherListenerUtilisateurs();
+    detacherListenerCompteur();
     // Si l'utilisateur vient de perdre son rôle admin alors qu'il est
     // sur cet onglet, on le renvoie vers Contenants pour éviter un état
     // incohérent (onglet actif mais masqué).
@@ -99,6 +102,31 @@ function appliquerVisibiliteOngletUtilisateurs(){
       if(contBtn) contBtn.click();
     }
   }
+
+  // Le bouton "Supprimer" du tableau des contenants n'est visible que
+  // pour les administrateurs : on redessine pour qu'il apparaisse ou
+  // disparaisse immédiatement, sans attendre une autre action.
+  if(typeof renderContenants === 'function') renderContenants();
+}
+
+/* --- Compteur de numérotation automatique (compteurs/contenants) ---
+   Écoute en temps réel, admin uniquement : permet de voir/forcer le
+   dernier identifiant attribué depuis l'onglet Utilisateurs. La lecture
+   et l'écriture réelles se font aussi ailleurs (voir 09-contenants.js)
+   pour la génération/réservation normale des identifiants. */
+function attacherListenerCompteur(){
+  if(unsubCompteur) return; // déjà attaché
+  unsubCompteur = db.collection('compteurs').doc('contenants').onSnapshot(doc=>{
+    const el = document.getElementById('compteur-valeur-actuelle');
+    if(!el) return;
+    el.textContent = (doc.exists && doc.data().dernier)
+      ? doc.data().dernier
+      : "(aucun identifiant généré automatiquement pour l'instant)";
+  }, err=> toast("Erreur de lecture du compteur : " + err.message, 'err'));
+}
+
+function detacherListenerCompteur(){
+  if(unsubCompteur){ unsubCompteur(); unsubCompteur = null; }
 }
 
 /* --- Liste complète des utilisateurs (admins uniquement) ---
