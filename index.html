@@ -181,6 +181,10 @@
             <label class="small" for="lot-quantite">Quantité</label>
             <input type="number" id="lot-quantite" min="1" max="100" value="10">
           </div>
+          <div style="flex:1; min-width:160px;">
+            <label class="small" for="lot-titre">Titre au-dessus du code-barres (facultatif)</label>
+            <input type="text" id="lot-titre" placeholder="Ex. NCC" maxlength="24">
+          </div>
           <div style="flex:0;">
             <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
           </div>
