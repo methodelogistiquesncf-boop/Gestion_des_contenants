@@ -426,11 +426,13 @@
 
       <div class="panel">
         <h2>👤 Onglet « Utilisateurs »</h2>
-        <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur.</p>
+        <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur — sert à gérer qui peut se connecter et avec quels droits.</p>
         <ul>
-          <li>Créer un nouveau compte de connexion : la personne reçoit un e-mail pour définir elle-même son mot de passe.</li>
-          <li>Attribuer un rôle à chaque compte s'étant déjà connecté au moins une fois.</li>
-          <li>Modifier le prénom/nom affichés, ou supprimer la fiche d'un utilisateur (le compte de connexion lui-même n'est pas supprimé).</li>
+          <li><strong>Ajouter un utilisateur</strong> : saisis son adresse e-mail et clique sur « Créer le compte ». La personne reçoit un e-mail pour définir elle-même son mot de passe ; son compte apparaît dans la liste dès sa 1ère connexion.</li>
+          <li><strong>Liste des utilisateurs</strong> : recense tous les comptes s'étant déjà connectés au moins une fois (impossible de lister un compte qui ne s'est jamais connecté).</li>
+          <li><strong>Prénom / Nom</strong> : modifiables directement dans le tableau ; ils s'affichent ensuite dans le bandeau en haut de l'écran, à la place de l'adresse e-mail, pour la personne concernée.</li>
+          <li><strong>Rôle</strong> : « Administrateur » donne accès à cet onglet Utilisateurs ; « Utilisateur » (ou aucun rôle) n'y donne pas accès. Un administrateur peut changer n'importe quel rôle, y compris le sien.</li>
+          <li><strong>Supprimer</strong> : retire uniquement la fiche (rôle, prénom, nom) — le compte de connexion Firebase n'est pas supprimé. Si la personne se reconnecte, sa fiche est recréée automatiquement sans rôle. Impossible de supprimer sa propre fiche.</li>
         </ul>
       </div>
 
@@ -439,6 +441,7 @@
         <ul>
           <li>La session se déconnecte automatiquement après <strong>8 heures d'inactivité</strong>.</li>
           <li>Le mot de passe se change depuis le bouton en haut à droite de l'écran.</li>
+          <li>Le bandeau en haut à droite affiche ton prénom et ton nom dès qu'ils sont renseignés (onglet Utilisateurs) ; sinon, ton adresse e-mail s'affiche par défaut.</li>
           <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
         </ul>
       </div>
