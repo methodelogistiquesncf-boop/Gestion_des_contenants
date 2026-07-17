@@ -454,6 +454,25 @@
 
     <!-- ---------- VUE : UTILISATEURS (Administrateur uniquement) ---------- -->
     <section id="v-utilisateurs" class="view">
+
+      <div class="panel">
+        <h2>Compteur de numérotation automatique</h2>
+        <p class="sub">Dernier identifiant à 18 chiffres attribué. La génération automatique et la réservation de lots repartent de ce numéro. À ne modifier qu'en cas de nécessité (ex. correction d'une numérotation incohérente) : une valeur mal choisie peut provoquer des doublons.</p>
+        <div class="form-row">
+          <div>
+            <label class="small">Valeur actuelle</label>
+            <div id="compteur-valeur-actuelle" class="mono" style="padding:9px 0; font-size:15px;">—</div>
+          </div>
+          <div style="flex:2; min-width:220px;">
+            <label class="small" for="compteur-nouvelle-valeur">Nouvelle valeur (18 chiffres)</label>
+            <input type="text" id="compteur-nouvelle-valeur" class="mono" placeholder="052030000000000000" maxlength="18" inputmode="numeric">
+          </div>
+          <div style="flex:0;">
+            <button class="btn btn-danger" id="btn-modifier-compteur" onclick="enregistrerCompteurManuel(this)">Mettre à jour le compteur</button>
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>Ajouter un utilisateur</h2>
         <p class="sub">Crée un compte de connexion ; la personne reçoit un e-mail pour définir elle-même son mot de passe.</p>
