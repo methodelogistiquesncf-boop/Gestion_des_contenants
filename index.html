@@ -109,6 +109,13 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
       Aide
     </button>
+    <!-- Onglet Utilisateurs : masqué par défaut, affiché uniquement pour
+         les comptes ayant le rôle "Administrateur" (voir js/16-utilisateurs.js,
+         appliquerVisibiliteOngletUtilisateurs). -->
+    <button class="tab-btn" data-view="v-utilisateurs" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      Utilisateurs
+    </button>
   </nav>
 
   <main>
@@ -418,6 +425,16 @@
       </div>
 
       <div class="panel">
+        <h2>👤 Onglet « Utilisateurs »</h2>
+        <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur.</p>
+        <ul>
+          <li>Créer un nouveau compte de connexion : la personne reçoit un e-mail pour définir elle-même son mot de passe.</li>
+          <li>Attribuer un rôle à chaque compte s'étant déjà connecté au moins une fois.</li>
+          <li>Modifier le prénom/nom affichés, ou supprimer la fiche d'un utilisateur (le compte de connexion lui-même n'est pas supprimé).</li>
+        </ul>
+      </div>
+
+      <div class="panel">
         <h2>ℹ️ Bon à savoir</h2>
         <ul>
           <li>La session se déconnecte automatiquement après <strong>8 heures d'inactivité</strong>.</li>
@@ -426,6 +443,29 @@
         </ul>
       </div>
 
+    </section>
+
+    <!-- ---------- VUE : UTILISATEURS (Administrateur uniquement) ---------- -->
+    <section id="v-utilisateurs" class="view">
+      <div class="panel">
+        <h2>Ajouter un utilisateur</h2>
+        <p class="sub">Crée un compte de connexion ; la personne reçoit un e-mail pour définir elle-même son mot de passe.</p>
+        <div class="form-row">
+          <div style="flex:2; min-width:220px;">
+            <label class="small" for="user-add-email">Adresse e-mail</label>
+            <input type="email" id="user-add-email" placeholder="prenom.nom@entreprise.fr" autocomplete="off">
+          </div>
+          <div style="flex:0;">
+            <button class="btn btn-primary" id="btn-creer-utilisateur" onclick="creerCompteUtilisateur(this)">Créer le compte</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Utilisateurs</h2>
+        <p class="sub">Comptes s'étant déjà connectés à l'application, avec attribution d'un rôle.</p>
+        <div id="utilisateurs-table"></div>
+      </div>
     </section>
 
   </main>
@@ -644,5 +684,6 @@
 <script src="js/13-casse.js"></script>
 <script src="js/14-historique.js"></script>
 <script src="js/15-book-pdf.js"></script>
+<script src="js/16-utilisateurs.js"></script>
 </body>
 </html>
