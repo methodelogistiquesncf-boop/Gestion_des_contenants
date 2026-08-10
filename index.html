@@ -1,93 +1,80 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Suivi Contenants Bois</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-<!-- Firebase (compat SDK, simple à intégrer) -->
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
-
-<!-- JsBarcode : génération de codes-barres CODE128 en SVG -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-
-<!-- jsPDF : génération du book PDF des types de contenants -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- SheetJS : génération de fichiers Excel (.xlsx) côté client -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi Contenants Bois</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Firebase (compat SDK, simple à intégrer) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <!-- JsBarcode : génération de codes-barres CODE128 en SVG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+  <!-- jsPDF : génération du book PDF des types de contenants -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- SheetJS : génération de fichiers Excel (.xlsx) côté client -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- ========================= ÉCRAN DE CONNEXION ========================= -->
+<!-- ⚠️ ZONE RECONSTRUITE : si ton écran de connexion original était différent,
+     conserve SES ids (ceux attendus par js/02-auth.js) lors du remplacement. -->
 <div id="login-screen">
-  <div class="login-card">
-    <div class="login-mark">
-      <div class="crate">SC</div>
+  <div class="login-card panel">
+    <h1>Suivi Contenants Bois</h1>
+    <p class="sub">Connecte-toi pour accéder à l'application.</p>
+    <div class="form-row" style="display:block;">
       <div>
-        <h1>Suivi Contenants</h1>
-        <p>Gestion des contenants bois & réparations</p>
+        <label class="small" for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="username" placeholder="prenom.nom@sncf.fr">
+      </div>
+      <div style="margin-top:12px;">
+        <label class="small" for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" autocomplete="current-password">
       </div>
     </div>
-    <div class="field">
-      <label for="login-email">Adresse e-mail</label>
-      <input type="text" id="login-email" autocomplete="username" placeholder="prenom.nom@entreprise.fr">
+    <div id="login-msg" class="field-msg"></div>
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+      <button class="btn btn-primary" id="btn-login" onclick="login(this)">Se connecter</button>
     </div>
-    <div class="field">
-      <label for="login-pass">Mot de passe</label>
-      <div class="password-field">
-        <input type="password" id="login-pass" autocomplete="current-password">
-        <button type="button" class="eye-btn" id="login-pass-eye" onclick="toggleFieldVisibility('login-pass', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        </button>
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="doLogin()">Se connecter</button>
-    <div id="login-error"></div>
-    <p class="forgot-link"><a onclick="ouvrirForgotModal()">Mot de passe oublié ?</a></p>
   </div>
 </div>
 
 <!-- ========================= APPLICATION ========================= -->
 <div id="app">
+
+  <!-- ⚠️ ZONE RECONSTRUITE : bandeau supérieur (titre, alerte, utilisateur). -->
   <header class="topbar">
-    <div class="brand">
-      <div class="crate">SC</div>
-      <div>
-        <h1>Suivi Contenants</h1>
-        <p>Contenants bois & réparations</p>
-      </div>
-    </div>
-    <div class="user-chip">
-      <button type="button" class="alert-chip" id="alert-chip-casse" onclick="allerVersCasse()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
-        <span id="alert-chip-count">0 cassé(s) à traiter</span>
-      </button>
-      <span id="user-email"></span>
-      <button class="btn btn-ghost btn-sm" onclick="ouvrirChangePasswordModal()">Changer le mot de passe</button>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Déconnexion</button>
+    <h1 style="margin:0; font-size:18px;">Suivi Contenants Bois</h1>
+
+    <button type="button" class="alert-chip" id="alert-chip-casse" onclick="allerVersCasse()">
+      ⚠️ <span id="alert-chip-count"></span>
+    </button>
+
+    <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+      <span id="user-name" class="small"></span>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()">Mot de passe</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="logout()">Se déconnecter</button>
     </div>
   </header>
 
+  <!-- ========================= NAVIGATION ========================= -->
   <nav class="tabs">
     <button class="tab-btn active" data-view="v-contenants">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"></path><path d="M3 8h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M3 8l2.5 3M21 8l-2.5 3"></path></svg>
       Contenants
     </button>
     <button class="tab-btn" data-view="v-impression">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
       Impression en masse
     </button>
     <button class="tab-btn" data-view="v-casse">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-      Casse / Réparation
+      Casse / Perte
     </button>
     <button class="tab-btn" data-view="v-types">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"></path><path d="M3 8h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M3 8l2.5 3M21 8l-2.5 3"></path></svg>
@@ -153,7 +140,7 @@
             <option value="">Tous les statuts</option>
             <option value="en_service">En service</option>
             <option value="casse">Cassé</option>
-            <option value="casse">Cassé</option>
+            <option value="perdu">Perdu</option>
             <option value="reforme">Réformé</option>
           </select>
           <select id="filter-type" onchange="renderContenants()">
@@ -176,11 +163,15 @@
     <section id="v-impression" class="view">
       <div class="panel">
         <h2>Impression d'étiquettes en masse</h2>
-        <p class="sub">Réserve d'un coup une série de numéros et imprime toutes les étiquettes correspondantes, à coller sur les contenants avant leur enregistrement individuel (au scan).</p>
+        <p class="sub">Réserve d'un coup une série de numéros dans la catégorie choisie et imprime toutes les étiquettes correspondantes, à coller sur les contenants avant leur enregistrement individuel (au scan).</p>
         <div class="form-row">
           <div style="flex:0 0 120px; min-width:120px;">
             <label class="small" for="lot-quantite">Quantité</label>
             <input type="number" id="lot-quantite" min="1" max="100" value="10">
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <label class="small" for="lot-categorie">Catégorie (préfixe de numérotation)</label>
+            <select id="lot-categorie"></select>
           </div>
           <div style="flex:1; min-width:160px;">
             <label class="small" for="lot-titre">Titre au-dessus du code-barres (facultatif)</label>
@@ -193,11 +184,11 @@
       </div>
     </section>
 
-    <!-- ---------- VUE : CASSE / RÉPARATION ---------- -->
+    <!-- ---------- VUE : CASSE / PERTE ---------- -->
     <section id="v-casse" class="view">
       <div class="panel">
-        <h2>Déclarer une casse</h2>
-        <p class="sub">Scanne ou saisis l'identifiant du contenant cassé pour le rechercher.</p>
+        <h2>Déclarer une casse ou une perte</h2>
+        <p class="sub">Scanne ou saisis l'identifiant du contenant à déclarer cassé ou perdu.</p>
         <div class="form-row">
           <div>
             <label class="small" for="lookup-id">Identifiant unique</label>
@@ -212,8 +203,8 @@
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2>Contenants cassés</h2>
-        <p class="sub">Clique sur une ligne pour ouvrir sa fiche de réparation.</p>
+        <h2>Contenants cassés ou perdus</h2>
+        <p class="sub">Clique sur une ligne pour ouvrir sa fiche.</p>
         <div id="casse-liste-table"></div>
       </div>
     </section>
@@ -304,7 +295,7 @@
     <section id="v-categories" class="view">
       <div class="panel">
         <h2>Ajouter une catégorie</h2>
-        <p class="sub">Ex : Bois, Métallique, Plastique…</p>
+        <p class="sub">Ex : Bois, Métallique, Plastique… Le préfixe détermine la série de numérotation de ses types.</p>
         <div class="form-row">
           <div>
             <label class="small" for="cat-nom">Nom</label>
@@ -313,6 +304,10 @@
           <div style="max-width:90px;">
             <label class="small" for="cat-couleur">Couleur</label>
             <input type="color" id="cat-couleur" value="#2c5f8a">
+          </div>
+          <div style="max-width:180px;">
+            <label class="small" for="cat-prefixe">Préfixe numérotation</label>
+            <input type="text" id="cat-prefixe" placeholder="Ex : 052080" maxlength="12" inputmode="numeric">
           </div>
           <div style="flex:0;">
             <button class="btn btn-primary" id="btn-creer-categorie" onclick="creerCategorie(this)">Ajouter</button>
@@ -358,10 +353,12 @@
       <div class="panel">
         <h2>À quoi sert cette application ?</h2>
         <p class="sub">
-          Suivi Contenants permet de suivre le cycle de vie des contenants en bois de l'atelier :
-          leur enregistrement, leur emplacement, les casses signalées et leurs réparations, ainsi
-          que des statistiques globales sur le parc. Chaque contenant est identifié par un code
-          unique, imprimé sous forme de code-barres et collé sur le contenant.
+          Suivi Contenants permet de suivre le cycle de vie des contenants de l'atelier :
+          leur enregistrement, leur emplacement, les casses et pertes signalées, leurs
+          réparations ou réapparitions, ainsi que des statistiques globales sur le parc.
+          Chaque contenant est identifié par un code unique à 18 chiffres, propre à sa
+          catégorie (ex. 05203… pour les caisses bois, 052040… pour les praticables,
+          052080… pour les caisses plastique), imprimé sous forme de code-barres.
         </p>
       </div>
 
@@ -369,9 +366,9 @@
         <h2>📦 Onglet « Contenants »</h2>
         <p class="sub">Enregistrer un nouveau contenant et consulter la liste complète du parc.</p>
         <ul>
-          <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique, puis choisis son type et clique sur « Ajouter ».</li>
-          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut, type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
-          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (créations, casses, réparations, réformes, avec date, auteur de l'action et photo éventuelle).</li>
+          <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique dans la série de la catégorie du type choisi, puis clique sur « Ajouter ».</li>
+          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut (En service, Cassé, Perdu, Réformé), type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
+          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (création, casses, réparations, pertes, réapparitions, réformes, avec date, auteur, commentaire et photo éventuelle).</li>
           <li>Le bouton <strong>« Code-barres »</strong> d'une ligne imprime directement l'étiquette de ce contenant.</li>
           <li>Pour les comptes <strong>Administrateur</strong> : un bouton <strong>« Supprimer »</strong> apparaît sur chaque ligne pour effacer définitivement un contenant (et son historique).</li>
         </ul>
@@ -381,120 +378,66 @@
         <h2>🖨️ Onglet « Impression en masse »</h2>
         <p class="sub">Générer et imprimer plusieurs étiquettes code-barres d'un coup.</p>
         <ul>
-          <li>Choisis une quantité, un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
+          <li>Choisis une quantité, la <strong>catégorie</strong> (qui détermine le préfixe de la série de numéros réservée), un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
           <li>Le lot est imprimé directement : une étiquette par contenant, prête à coller.</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h2>🔧 Onglet « Casse / Réparation »</h2>
-        <p class="sub">Déclarer un contenant cassé, le réparer, ou le réformer définitivement.</p>
+        <h2>🔧 Onglet « Casse / Perte »</h2>
+        <p class="sub">Déclarer un contenant cassé ou perdu, le réparer, le retrouver ou le réformer.</p>
         <ul>
-          <li><strong>Déclarer une casse</strong> : scanne ou saisis l'identifiant du contenant cassé, choisis un emplacement de réparation, ajoute un commentaire ou une photo si besoin, puis clique sur « Déclarer cassé ».</li>
-          <li>La liste <strong>« Contenants cassés »</strong> en dessous montre tous les contenants actuellement cassés. Cliquer sur une ligne ouvre directement sa fiche, sans avoir à ressaisir l'identifiant.</li>
-          <li>Depuis la fiche d'un contenant cassé : <strong>« Remettre en service »</strong> le repasse en statut normal, ou <strong>« Réformer définitivement »</strong> le retire du parc actif (action peu réversible).</li>
-          <li>Le badge rouge en haut à droite de l'écran (« X cassé(s) à traiter ») t'amène directement sur cet onglet.</li>
+          <li><strong>Déclarer une casse</strong> : scanne ou saisis l'identifiant, choisis un emplacement de réparation, ajoute un commentaire et une photo facultatifs, puis « Déclarer cassé ».</li>
+          <li><strong>Déclarer une perte</strong> : sur la même fiche, ajoute un commentaire et une photo facultatifs puis « Déclarer perdu ». Le contenant passe au statut Perdu et apparaît dans les statistiques.</li>
+          <li><strong>Contenants cassés ou perdus</strong> : la liste en bas d'onglet regroupe les incidents en attente ; un clic ouvre la fiche pour « Remettre en service » (réparation ou réapparition) ou « Réformer définitivement ».</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h2>📐 Onglet « Types de contenants »</h2>
-        <p class="sub">Gérer les modèles de contenants (dimensions, description, photo, catégorie).</p>
+        <h2>🏷️ Onglets « Types », « Emplacements », « Catégories »</h2>
         <ul>
-          <li>Chaque type est identifié par une lettre et regroupe des dimensions (longueur/largeur/hauteur), une description et une photo optionnelles, et peut être rattaché à une catégorie.</li>
-          <li>Le bouton de génération de <strong>book PDF</strong> exporte un catalogue complet, une page par type, avec photo et caractéristiques.</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h2>📍 Onglet « Emplacements »</h2>
-        <p class="sub">Gérer les zones où sont stockés ou réparés les contenants.</p>
-        <ul>
-          <li>Un emplacement (nom + description) sert à savoir où se trouve chaque contenant, notamment pendant une réparation.</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h2>🏷️ Onglet « Catégories »</h2>
-        <p class="sub">Regrouper les types de contenants par grande famille.</p>
-        <ul>
-          <li>Chaque catégorie a un nom et une couleur, utilisés notamment dans les filtres et les statistiques.</li>
+          <li><strong>Types</strong> : lettre, dimensions, catégorie et photo ; le book PDF imprime le catalogue des types.</li>
+          <li><strong>Emplacements</strong> : zones de dépôt des contenants cassés.</li>
+          <li><strong>Catégories</strong> : nom, couleur et <strong>préfixe de numérotation</strong> (modifiable via « Modifier »). C'est ce préfixe qui définit la série de numéros de ses types.</li>
         </ul>
       </div>
 
       <div class="panel">
         <h2>📊 Onglet « Statistiques »</h2>
-        <p class="sub">Vue d'ensemble de l'état du parc.</p>
-        <ul>
-          <li>Répartition globale par statut (en service / cassé / réformé), et détail par type et par catégorie, avec taux de casse.</li>
-        </ul>
+        <p class="sub">
+          Vue d'ensemble du parc : total, en service, cassés, <strong>perdus</strong>, réformés,
+          répartition par statut, détail par type et par catégorie (avec taux d'incident
+          casse + perte). Le badge d'alerte en haut de l'écran signale en permanence le
+          nombre d'incidents (cassés + perdus) à traiter.
+        </p>
       </div>
-
-      <div class="panel">
-        <h2>👤 Onglet « Utilisateurs »</h2>
-        <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur — sert à gérer qui peut se connecter et avec quels droits.</p>
-        <ul>
-          <li><strong>Compteur de numérotation automatique</strong> : affiche le dernier identifiant à 18 chiffres attribué, et permet de le forcer manuellement en cas de besoin (ex. correction d'une numérotation incohérente). À utiliser avec prudence : une valeur mal choisie peut provoquer des doublons.</li>
-          <li><strong>Ajouter un utilisateur</strong> : saisis son adresse e-mail et clique sur « Créer le compte ». La personne reçoit un e-mail pour définir elle-même son mot de passe ; son compte apparaît dans la liste dès sa 1ère connexion.</li>
-          <li><strong>Liste des utilisateurs</strong> : recense tous les comptes s'étant déjà connectés au moins une fois (impossible de lister un compte qui ne s'est jamais connecté).</li>
-          <li><strong>Prénom / Nom</strong> : modifiables directement dans le tableau ; ils s'affichent ensuite dans le bandeau en haut de l'écran, à la place de l'adresse e-mail, pour la personne concernée.</li>
-          <li><strong>Rôle</strong> : « Administrateur » donne accès à cet onglet Utilisateurs (et au bouton « Supprimer » sur les contenants) ; « Utilisateur » (ou aucun rôle) n'y donne pas accès. Un administrateur peut changer n'importe quel rôle, y compris le sien.</li>
-          <li><strong>Supprimer</strong> : supprime la fiche du compte (le compte de connexion Firebase Auth lui-même n'est pas supprimé).</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h2>ℹ️ Bon à savoir</h2>
-        <ul>
-          <li>La session se déconnecte automatiquement après <strong>8 heures d'inactivité</strong>.</li>
-          <li>Le mot de passe se change depuis le bouton en haut à droite de l'écran.</li>
-          <li>Le bandeau en haut à droite affiche ton prénom et ton nom dès qu'ils sont renseignés (onglet Utilisateurs) ; sinon, ton adresse e-mail s'affiche par défaut.</li>
-          <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
-          <li>La suppression d'un contenant ou la modification du compteur (réservées aux administrateurs) sont <strong>définitives et irréversibles</strong>.</li>
-        </ul>
-      </div>
-
     </section>
 
-    <!-- ---------- VUE : UTILISATEURS (Administrateur uniquement) ---------- -->
+    <!-- ---------- VUE : UTILISATEURS (administrateurs) ---------- -->
+    <!-- ⚠️ ZONE RECONSTRUITE : adapte les ids si ton 16-utilisateurs.js en attend d'autres. -->
     <section id="v-utilisateurs" class="view">
-
-      <div class="panel">
-        <h2>Compteur de numérotation automatique</h2>
-        <p class="sub">Dernier identifiant à 18 chiffres attribué. La génération automatique et la réservation de lots repartent de ce numéro. À ne modifier qu'en cas de nécessité (ex. correction d'une numérotation incohérente) : une valeur mal choisie peut provoquer des doublons.</p>
-        <div class="form-row">
-          <div>
-            <label class="small">Valeur actuelle</label>
-            <div id="compteur-valeur-actuelle" class="mono" style="padding:9px 0; font-size:15px;">—</div>
-          </div>
-          <div style="flex:2; min-width:220px;">
-            <label class="small" for="compteur-nouvelle-valeur">Nouvelle valeur (18 chiffres)</label>
-            <input type="text" id="compteur-nouvelle-valeur" class="mono" placeholder="052030000000000000" maxlength="18" inputmode="numeric">
-          </div>
-          <div style="flex:0;">
-            <button class="btn btn-danger" id="btn-modifier-compteur" onclick="enregistrerCompteurManuel(this)">Mettre à jour le compteur</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Ajouter un utilisateur</h2>
-        <p class="sub">Crée un compte de connexion ; la personne reçoit un e-mail pour définir elle-même son mot de passe.</p>
-        <div class="form-row">
-          <div style="flex:2; min-width:220px;">
-            <label class="small" for="user-add-email">Adresse e-mail</label>
-            <input type="email" id="user-add-email" placeholder="prenom.nom@entreprise.fr" autocomplete="off">
-          </div>
-          <div style="flex:0;">
-            <button class="btn btn-primary" id="btn-creer-utilisateur" onclick="creerCompteUtilisateur(this)">Créer le compte</button>
-          </div>
-        </div>
-      </div>
-
       <div class="panel">
         <h2>Utilisateurs</h2>
-        <p class="sub">Comptes s'étant déjà connectés à l'application, avec attribution d'un rôle.</p>
+        <p class="sub">Comptes ayant accès à l'application et rôles associés.</p>
         <div id="utilisateurs-table"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Forcer un compteur de numérotation</h2>
+        <p class="sub">Réservé aux administrateurs : corrige une numérotation incohérente. La valeur doit comporter 18 chiffres et commencer par le préfixe de la série.</p>
+        <div class="form-row">
+          <div style="max-width:160px;">
+            <label class="small" for="compteur-prefixe">Préfixe de la série</label>
+            <input type="text" id="compteur-prefixe" placeholder="Ex : 05203" maxlength="12" inputmode="numeric">
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <label class="small" for="compteur-nouvelle-valeur">Nouvelle valeur du compteur (18 chiffres)</label>
+            <input type="text" id="compteur-nouvelle-valeur" class="id-input" placeholder="052030000000000000" maxlength="18" inputmode="numeric">
+          </div>
+          <div style="flex:0;">
+            <button class="btn btn-danger" onclick="enregistrerCompteurManuel(this)">Forcer le compteur</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -502,189 +445,72 @@
 </div>
 
 <!-- ---------- MODALE HISTORIQUE ---------- -->
-<div class="modal-backdrop" id="modal-historique">
-  <div class="modal">
-    <span class="close-x" onclick="closeModal()">✕</span>
-    <h3 id="modal-title">Historique</h3>
-    <div id="modal-body"></div>
-  </div>
-</div>
-
-<!-- ---------- MODALE CODE-BARRES ---------- -->
-<div class="modal-backdrop" id="modal-barcode">
-  <div class="modal">
-    <span class="close-x" onclick="closeBarcodeModal()">✕</span>
-    <h3>Code-barres à imprimer</h3>
-    <div id="barcode-print-zone" class="barcode-print-zone"></div>
-    <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeBarcodeModal()">Fermer</button>
-      <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
+<div class="modal" id="modal-historique">
+  <div class="modal-card">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body" class="modal-body"></div>
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeModal()">Fermer</button>
     </div>
   </div>
 </div>
 
-<!-- ---------- MODALE PHOTO TYPE ---------- -->
-<div class="modal-backdrop" id="modal-photo">
-  <div class="modal" style="max-width:560px; text-align:center;">
-    <span class="close-x" onclick="closePhotoModal()">✕</span>
-    <h3 id="modal-photo-title">Photo</h3>
-    <img id="modal-photo-img" alt="Photo du type de contenant" style="max-width:100%; border-radius:8px; border:1px solid var(--line);">
-  </div>
-</div>
-
-<!-- ---------- MODALE ÉDITION TYPE ---------- -->
-<div class="modal-backdrop" id="modal-edit-type">
-  <div class="modal" style="max-width:520px;">
-    <span class="close-x" onclick="closeEditTypeModal()">✕</span>
-    <h3>Modifier le type <span id="edit-type-lettre-affichage" class="mono"></span></h3>
-    <input type="hidden" id="edit-type-lettre">
-
-    <div class="form-row">
-      <div>
-        <label class="small" for="edit-type-longueur">Longueur</label>
-        <input type="number" id="edit-type-longueur" min="0">
-      </div>
-      <div>
-        <label class="small" for="edit-type-largeur">Largeur</label>
-        <input type="number" id="edit-type-largeur" min="0">
-      </div>
-      <div>
-        <label class="small" for="edit-type-hauteur">Hauteur</label>
-        <input type="number" id="edit-type-hauteur" min="0">
-      </div>
-    </div>
-
-    <div class="form-row" style="margin-top:12px;">
-      <div>
-        <label class="small" for="edit-type-categorie">Catégorie</label>
-        <select id="edit-type-categorie"><option value="">Aucune</option></select>
-      </div>
-    </div>
-
-    <div class="form-row" style="margin-top:12px;">
-      <div style="flex:1; min-width:100%;">
-        <label class="small" for="edit-type-desc">Description</label>
-        <input type="text" id="edit-type-desc" placeholder="Facultatif">
-      </div>
-    </div>
-
-    <div class="form-row" style="margin-top:12px;">
-      <div>
-        <label class="small" for="edit-type-photo">Photo</label>
-        <input type="file" id="edit-type-photo" accept="image/*" onchange="previewPhotoEditType(event)">
-      </div>
-      <div id="edit-type-photo-preview-wrap" style="display:none; align-items:center; gap:10px;">
-        <img id="edit-type-photo-preview" alt="Aperçu photo" style="max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--line); object-fit:cover;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="effacerPhotoEditType()">Retirer</button>
-      </div>
-    </div>
-
-    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeEditTypeModal()">Annuler</button>
-      <button class="btn btn-primary" id="btn-edit-type" onclick="enregistrerEditType(this)">Enregistrer</button>
+<!-- ---------- MODALE PHOTO ---------- -->
+<div class="modal" id="modal-photo">
+  <div class="modal-card">
+    <h3 id="modal-photo-title"></h3>
+    <img id="modal-photo-img" alt="Photo en grand" style="width:100%; border-radius:8px;">
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closePhotoModal()">Fermer</button>
     </div>
   </div>
 </div>
 
 <!-- ---------- MODALE ÉDITION CATÉGORIE ---------- -->
-<div class="modal-backdrop" id="modal-edit-categorie">
-  <div class="modal" style="max-width:420px;">
-    <span class="close-x" onclick="closeEditCategorieModal()">✕</span>
+<div class="modal" id="modal-categorie">
+  <div class="modal-card">
     <h3>Modifier la catégorie</h3>
-    <input type="hidden" id="edit-cat-id">
-
     <div class="form-row">
-      <div>
+      <div style="flex:2; min-width:160px;">
         <label class="small" for="edit-cat-nom">Nom</label>
-        <input type="text" id="edit-cat-nom" placeholder="Ex: Bois">
+        <input type="text" id="edit-cat-nom">
       </div>
-      <div style="max-width:90px;">
+      <div>
         <label class="small" for="edit-cat-couleur">Couleur</label>
         <input type="color" id="edit-cat-couleur" value="#2c5f8a">
       </div>
     </div>
-
-    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeEditCategorieModal()">Annuler</button>
-      <button class="btn btn-primary" id="btn-edit-categorie" onclick="enregistrerEditCategorie(this)">Enregistrer</button>
+    <div class="form-row" style="margin-top:12px;">
+      <div style="max-width:220px;">
+        <label class="small" for="edit-cat-prefixe">Préfixe de numérotation</label>
+        <input type="text" id="edit-cat-prefixe" placeholder="Ex : 052040" maxlength="12" inputmode="numeric">
+      </div>
     </div>
-  </div>
-</div>
-
-  <!-- ---------- MODALE ÉDITION EMPLACEMENT ---------- -->
-<div class="modal-backdrop" id="modal-edit-emplacement">
-  <div class="modal" style="max-width:420px;">
-    <span class="close-x" onclick="closeEditEmplacementModal()">✕</span>
-    <h3>Modifier l'emplacement</h3>
-    <input type="hidden" id="edit-emp-id">
-
-    <div class="field">
-      <label for="edit-emp-nom">Nom</label>
-      <input type="text" id="edit-emp-nom" placeholder="Ex: Zone réparation A3">
-    </div>
-    <div class="field">
-      <label for="edit-emp-desc">Description</label>
-      <input type="text" id="edit-emp-desc" placeholder="Facultatif">
-    </div>
-
-    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeEditEmplacementModal()">Annuler</button>
-      <button class="btn btn-primary" id="btn-edit-emplacement" onclick="enregistrerEditEmplacement(this)">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<!-- ---------- MODALE MOT DE PASSE OUBLIÉ ---------- -->
-<div class="modal-backdrop" id="modal-forgot">
-  <div class="modal" style="max-width:400px;">
-    <span class="close-x" onclick="closeForgotModal()">✕</span>
-    <h3>Mot de passe oublié</h3>
-    <p class="sub" style="margin-bottom:14px;">Indique ton adresse e-mail : tu recevras un lien pour réinitialiser ton mot de passe.</p>
-    <div class="field">
-      <label for="forgot-email">Adresse e-mail</label>
-      <input type="text" id="forgot-email" autocomplete="username" placeholder="prenom.nom@entreprise.fr">
-    </div>
-    <div id="forgot-msg" class="field-msg"></div>
+    <p class="sub">Les prochains numéros de cette catégorie commenceront par ce préfixe, complété jusqu'à 18 chiffres (ex. 052040 → 052040000000000001). Laisse vide pour utiliser le préfixe par défaut.</p>
     <div style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="closeForgotModal()">Annuler</button>
-      <button class="btn btn-primary" id="btn-envoyer-reset" onclick="envoyerResetMotDePasse(this)">Envoyer le lien</button>
+      <button class="btn btn-ghost" onclick="closeModalCategorie()">Annuler</button>
+      <button class="btn btn-primary" id="btn-enregistrer-categorie" onclick="enregistrerCategorie(this)">Enregistrer</button>
     </div>
   </div>
 </div>
 
-<!-- ---------- MODALE CHANGER LE MOT DE PASSE ---------- -->
-<div class="modal-backdrop" id="modal-change-password">
-  <div class="modal" style="max-width:420px;">
-    <span class="close-x" onclick="closeChangePasswordModal()">✕</span>
+<!-- ---------- MODALE CHANGEMENT DE MOT DE PASSE ---------- -->
+<!-- ⚠️ ZONE RECONSTRUITE : conserve les ids attendus par js/02-auth.js si différents. -->
+<div class="modal" id="modal-change-password">
+  <div class="modal-card">
     <h3>Changer le mot de passe</h3>
-
-    <div class="field">
-      <label for="cp-current">Mot de passe actuel</label>
-      <div class="password-field">
-        <input type="password" id="cp-current" autocomplete="current-password">
-        <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-current', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        </button>
+    <div class="form-row" style="display:block;">
+      <div>
+        <label class="small" for="cp-ancien">Mot de passe actuel</label>
+        <input type="password" id="cp-ancien" autocomplete="current-password">
       </div>
-    </div>
-
-    <div class="field">
-      <label for="cp-new">Nouveau mot de passe</label>
-      <div class="password-field">
-        <input type="password" id="cp-new" autocomplete="new-password">
-        <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-new', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        </button>
+      <div style="margin-top:12px;">
+        <label class="small" for="cp-nouveau">Nouveau mot de passe</label>
+        <input type="password" id="cp-nouveau" autocomplete="new-password">
       </div>
-    </div>
-
-    <div class="field">
-      <label for="cp-new-confirm">Confirmer le nouveau mot de passe</label>
-      <div class="password-field">
-        <input type="password" id="cp-new-confirm" autocomplete="new-password">
-        <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-new-confirm', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        </button>
+      <div style="margin-top:12px;">
+        <label class="small" for="cp-confirmation">Confirmer le nouveau mot de passe</label>
+        <input type="password" id="cp-confirmation" autocomplete="new-password">
       </div>
     </div>
 
