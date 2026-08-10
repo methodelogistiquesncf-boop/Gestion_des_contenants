@@ -1,33 +1,33 @@
-/* ===================================================================
-   DÉCLARATION DE CASSE / RÉPARATION
-   =================================================================== */
 let contenantCourant = null;
 
-// Liste de tous les contenants au statut "casse", affichée sous le
-// formulaire de recherche. Un clic sur une ligne pré-remplit
-// l'identifiant et ouvre directement la fiche de réparation, comme si
-// on l'avait scanné/saisi puis cliqué sur "Rechercher".
 function renderCasseListe(){
   const el = document.getElementById('casse-liste-table');
   if(!el) return;
 
   const rows = Object.values(CONTENANTS)
-    .filter(c=> c.statut === 'casse')
-    .sort((a,b)=> (b.dateCasse?.seconds||0) - (a.dateCasse?.seconds||0));
+    .filter(c=> c.statut === 'casse' || c.statut === 'perdu')
+    .sort((a,b)=> {
+       const dateA = (a.dateCasse?.seconds||0) || (a.datePerte?.seconds||0);
+       const dateB = (b.dateCasse?.seconds||0) || (b.datePerte?.seconds||0);
+       return dateB - dateA;
+    });
 
   if(rows.length === 0){
-    el.innerHTML = '<div class="empty">Aucun contenant cassé actuellement.</div>';
+    el.innerHTML = '<div class="empty">Aucun contenant cassé ou perdu actuellement.</div>';
     return;
   }
 
-  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Emplacement</th><th>Depuis le</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Statut</th><th>Emplacement</th><th>Depuis le</th></tr></thead><tbody>';
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
+    const statutTexte = c.statut === 'perdu' ? 'Perdu' : 'Cassé';
+    const dateObj = c.dateCasse || c.datePerte;
     html += `<tr class="clickable" onclick="ouvrirFicheDepuisListeCasse('${c.identifiant}')">
       <td class="mono">${c.identifiant}</td>
       <td>${c.typeLettre}</td>
+      <td>${statutTexte}</td>
       <td>${emp}</td>
-      <td>${formatDate(c.dateCasse)}</td>
+      <td>${formatDate(dateObj)}</td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -48,7 +48,7 @@ function lookupContenant(){
   const c = CONTENANTS[id];
   if(!c){
     contenantCourant = null;
-    resultEl.innerHTML = '<div class="lookup-result">Aucun contenant ne correspond à cet identifiant. Vérifie la saisie ou enregistre-le d\'abord dans l\'onglet Contenants.</div>';
+    resultEl.innerHTML = '<div class="lookup-result">Aucun contenant ne correspond à cet identifiant.</div>';
     return;
   }
   contenantCourant = c;
@@ -56,41 +56,50 @@ function lookupContenant(){
   const empOptions = Object.keys(EMPLACEMENTS).map(eid=> `<option value="${eid}" ${c.emplacementId===eid?'selected':''}>${EMPLACEMENTS[eid].nom}</option>`).join('');
 
   let actionsHtml = '';
-  if(c.statut === 'en_service'){
-    // Réinitialise la photo en attente à chaque nouvelle recherche, pour
-    // ne pas réutiliser par erreur la photo d'un contenant précédent.
+  if(c.statut === 'en_service' || c.statut === 'casse'){
     cassePhotoBase64 = null;
     actionsHtml = `
       <div class="form-row" style="margin-top:14px;">
         <div>
           <label class="small" for="casse-emplacement">Emplacement de réparation</label>
-          <select id="casse-emplacement">${empOptions || '<option value="">Aucun emplacement — crée-en un d\'abord</option>'}</select>
+          <select id="casse-emplacement">${empOptions || '<option value="">Aucun emplacement</option>'}</select>
         </div>
         <div style="flex:2; min-width:160px;">
-          <label class="small" for="casse-commentaire">Commentaire</label>
+          <label class="small" for="casse-commentaire">Commentaire casse</label>
           <input type="text" id="casse-commentaire" placeholder="Facultatif">
         </div>
       </div>
-      <div class="form-row" style="margin-top:12px;">
+      <div class="form-row" style="margin-top:12px; align-items:flex-end;">
         <div>
-          <label class="small" for="casse-photo">Photo du contenant cassé</label>
+          <label class="small" for="casse-photo">Photo du contenant</label>
           <input type="file" id="casse-photo" accept="image/*" capture="environment" onchange="previewPhotoCasse(event)">
         </div>
         <div id="casse-photo-preview-wrap" style="display:none; align-items:center; gap:10px;">
-          <img id="casse-photo-preview" alt="Aperçu photo casse" style="max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--line); object-fit:cover;">
+          <img id="casse-photo-preview" alt="Aperçu" style="max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--line); object-fit:cover;">
           <button type="button" class="btn btn-ghost btn-sm" onclick="effacerPhotoCasse()">Retirer</button>
         </div>
         <div style="flex:1;"></div>
         <div style="flex:0;">
           <button class="btn btn-danger" onclick="declarerCasse(this)">Déclarer cassé</button>
         </div>
+      </div>
+      <hr style="margin:18px 0; border:0; border-top:1px solid var(--line);">
+      <div class="form-row" style="margin-top:4px; align-items:flex-end;">
+        <div style="flex:2; min-width:160px;">
+          <label class="small" for="perte-commentaire">Commentaire perte</label>
+          <input type="text" id="perte-commentaire" placeholder="Ex: Perdu lors transport">
+        </div>
+        <div style="flex:1;"></div>
+        <div style="flex:0;">
+          <button class="btn" style="background:#b45309; color:white; border:none;" onclick="declarerPerdu(this)">Déclarer perdu</button>
+        </div>
       </div>`;
-  } else if(c.statut === 'casse'){
+  } else if(c.statut === 'perdu'){
     actionsHtml = `
       <div class="form-row" style="margin-top:14px;">
         <div style="flex:2; min-width:160px;">
-          <label class="small" for="reparation-commentaire">Commentaire</label>
-          <input type="text" id="reparation-commentaire" placeholder="Facultatif">
+          <label class="small" for="reapparition-commentaire">Commentaire de réapparition</label>
+          <input type="text" id="reapparition-commentaire" placeholder="Facultatif">
         </div>
         <div style="flex:0;">
           <button class="btn btn-primary" onclick="marquerRepare(this)">Remettre en service</button>
@@ -103,10 +112,8 @@ function lookupContenant(){
     actionsHtml = '<p class="sub" style="margin-top:14px;">Ce contenant est réformé, aucune action disponible.</p>';
   }
 
-  // Photo actuellement associée à la casse en cours, affichée en lecture
-  // seule dans le résumé (uniquement si le contenant est cassé).
   const photoCasseHtml = (c.statut === 'casse' && c.photoCasse)
-    ? `<div class="row"><span>Photo</span><span><img src="${c.photoCasse}" class="type-thumb" onclick="ouvrirPhotoCasse('${c.identifiant}')" alt="Photo contenant cassé"></span></div>`
+    ? `<div class="row"><span>Photo</span><span><img src="${c.photoCasse}" class="type-thumb" onclick="ouvrirPhotoCasse('${c.identifiant}')" alt="Photo"></span></div>`
     : '';
 
   resultEl.innerHTML = `
@@ -140,7 +147,32 @@ function declarerCasse(btn){
       photo: photo, utilisateur: obtenirNomUtilisateurPourHistorique()
     })
   }).then(()=>{
-    toast("Contenant déclaré cassé et déposé.", 'ok');
+    toast("Contenant déclaré cassé.", 'ok');
+    cassePhotoBase64 = null;
+    document.getElementById('lookup-id').value = '';
+    document.getElementById('lookup-result').innerHTML = '';
+    document.getElementById('lookup-id').focus();
+  }).catch(err=> toast("Erreur : " + err.message, 'err'))
+    .finally(()=> clearBtnLoading(btn));
+}
+
+function declarerPerdu(btn){
+  if(!contenantCourant) return;
+  const commentaire = document.getElementById('perte-commentaire') ? document.getElementById('perte-commentaire').value.trim() : '';
+  const now = firebase.firestore.Timestamp.now();
+  setBtnLoading(btn, 'Enregistrement…');
+  db.collection('contenants').doc(contenantCourant.identifiant).update({
+    statut: 'perdu',
+    datePerte: now,
+    emplacementId: null,
+    photoCasse: null,
+    historique: firebase.firestore.FieldValue.arrayUnion({
+      date: now, action: 'perte', statut: 'perdu', emplacementId: null,
+      commentaire: commentaire || 'Déclaré perdu',
+      utilisateur: obtenirNomUtilisateurPourHistorique()
+    })
+  }).then(()=>{
+    toast("Contenant déclaré perdu.", 'ok');
     cassePhotoBase64 = null;
     document.getElementById('lookup-id').value = '';
     document.getElementById('lookup-result').innerHTML = '';
@@ -151,7 +183,9 @@ function declarerCasse(btn){
 
 function marquerRepare(btn){
   if(!contenantCourant) return;
-  const commentaire = document.getElementById('reparation-commentaire').value.trim();
+  const isLost = contenantCourant.statut === 'perdu';
+  const commentaireInput = document.getElementById(isLost ? 'reapparition-commentaire' : 'reparation-commentaire');
+  const commentaire = commentaireInput ? commentaireInput.value.trim() : '';
   const now = firebase.firestore.Timestamp.now();
   setBtnLoading(btn, 'Enregistrement…');
   db.collection('contenants').doc(contenantCourant.identifiant).update({
@@ -160,8 +194,9 @@ function marquerRepare(btn){
     dateReparation: now,
     photoCasse: null,
     historique: firebase.firestore.FieldValue.arrayUnion({
-      date: now, action: 'reparation', statut: 'en_service', emplacementId: null,
-      commentaire: commentaire || 'Réparé, remis en service',
+      date: now, action: isLost ? 'reapparition' : 'reparation', 
+      statut: 'en_service', emplacementId: null,
+      commentaire: commentaire || (isLost ? 'Réapparu, remis en service' : 'Réparé, remis en service'),
       utilisateur: obtenirNomUtilisateurPourHistorique()
     })
   }).then(()=>{
