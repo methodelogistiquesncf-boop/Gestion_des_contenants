@@ -352,16 +352,19 @@
       </div>
     </section>
 
-    <!-- ---------- VUE : AIDE ---------- -->
+        <!-- ---------- VUE : AIDE ---------- -->
     <section id="v-aide" class="view">
 
       <div class="panel">
         <h2>À quoi sert cette application ?</h2>
         <p class="sub">
-          Suivi Contenants permet de suivre le cycle de vie des contenants en bois de l'atelier :
-          leur enregistrement, leur emplacement, les casses signalées et leurs réparations, ainsi
-          que des statistiques globales sur le parc. Chaque contenant est identifié par un code
-          unique, imprimé sous forme de code-barres et collé sur le contenant.
+          Suivi Contenants permet de suivre le cycle de vie des contenants de l'atelier :
+          leur enregistrement, leur numérotation par catégorie, leur emplacement, les casses
+          et les <strong>pertes</strong> signalées, leurs réparations ou réapparitions, ainsi que
+          des statistiques globales sur le parc. Chaque contenant est identifié par un code
+          unique à 18 chiffres propre à sa catégorie (ex. 05203… pour les caisses bois,
+          052040… pour les praticables, 052080… pour les caisses plastique), imprimé sous
+          forme de code-barres et collé sur le contenant.
         </p>
       </div>
 
@@ -369,10 +372,11 @@
         <h2>📦 Onglet « Contenants »</h2>
         <p class="sub">Enregistrer un nouveau contenant et consulter la liste complète du parc.</p>
         <ul>
-          <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique, puis choisis son type et clique sur « Ajouter ».</li>
-          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut, type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
-          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (créations, casses, réparations, réformes, avec date, auteur de l'action et photo éventuelle).</li>
+          <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique <strong>dans la série de la catégorie du type choisi</strong>, puis clique sur « Ajouter ».</li>
+          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut (En service, Cassé, <strong>Perdu</strong>, Réformé), type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
+          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (création, casses, réparations, <strong>pertes</strong>, <strong>réapparitions</strong>, réformes, avec date, auteur de l'action, commentaire et photo éventuelle).</li>
           <li>Le bouton <strong>« Code-barres »</strong> d'une ligne imprime directement l'étiquette de ce contenant.</li>
+          <li>Le bouton <strong>« Exporter Excel »</strong> exporte la liste telle qu'elle est affichée à l'écran (filtrée et triée).</li>
           <li>Pour les comptes <strong>Administrateur</strong> : un bouton <strong>« Supprimer »</strong> apparaît sur chaque ligne pour effacer définitivement un contenant (et son historique).</li>
         </ul>
       </div>
@@ -381,19 +385,21 @@
         <h2>🖨️ Onglet « Impression en masse »</h2>
         <p class="sub">Générer et imprimer plusieurs étiquettes code-barres d'un coup.</p>
         <ul>
-          <li>Choisis une quantité, un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
-          <li>Le lot est imprimé directement : une étiquette par contenant, prête à coller.</li>
+          <li>Choisis une quantité, la <strong>catégorie (préfixe)</strong> pour choisir la série de numéros à réserver, un titre optionnel à afficher au-dessus des codes-barres (ex. « NCC »), puis clique sur « Réserver et imprimer le lot ».</li>
+          <li>Les numéros sont <strong>réservés</strong> dans la série de la catégorie choisie : le compteur de cette catégorie avance immédiatement, et deux lots ne se chevauchent jamais.</li>
+          <li>Le lot est imprimé directement : une étiquette par contenant, prête à coller. Les contenants seront créés plus tard, au moment du scan de chaque étiquette dans l'onglet « Contenants ».</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h2>🔧 Onglet « Casse / Réparation »</h2>
-        <p class="sub">Déclarer un contenant cassé, le réparer, ou le réformer définitivement.</p>
+        <h2>🔧 Onglet « Casse / Réparation » (pertes incluses)</h2>
+        <p class="sub">Déclarer un contenant cassé ou perdu, le réparer, le retrouver ou le réformer.</p>
         <ul>
-          <li><strong>Déclarer une casse</strong> : scanne ou saisis l'identifiant du contenant cassé, choisis un emplacement de réparation, ajoute un commentaire ou une photo si besoin, puis clique sur « Déclarer cassé ».</li>
-          <li>La liste <strong>« Contenants cassés »</strong> en dessous montre tous les contenants actuellement cassés. Cliquer sur une ligne ouvre directement sa fiche, sans avoir à ressaisir l'identifiant.</li>
-          <li>Depuis la fiche d'un contenant cassé : <strong>« Remettre en service »</strong> le repasse en statut normal, ou <strong>« Réformer définitivement »</strong> le retire du parc actif (action peu réversible).</li>
-          <li>Le badge rouge en haut à droite de l'écran (« X cassé(s) à traiter ») t'amène directement sur cet onglet.</li>
+          <li><strong>Déclarer une casse</strong> : scanne ou saisis l'identifiant, choisis un emplacement de réparation, ajoute si besoin un commentaire et une photo, puis clique sur « Déclarer cassé ».</li>
+          <li><strong>Déclarer une perte</strong> : sur la même fiche, saisis un commentaire et une photo facultative (ex. circonstances de la perte), puis clique sur « Déclarer perdu ». Le contenant passe au statut <strong>Perdu</strong> et apparaît dans les statistiques.</li>
+          <li>La liste <strong>« Contenants cassés ou perdus »</strong> en dessous regroupe tous les incidents à traiter. Cliquer sur une ligne ouvre directement la fiche, sans avoir à ressaisir l'identifiant.</li>
+          <li>Depuis la fiche d'un contenant cassé ou perdu : <strong>« Remettre en service »</strong> le repasse en statut normal (réparation, ou <strong>réapparition</strong> d'un contenant perdu retrouvé), ou <strong>« Réformer définitivement »</strong> le retire du parc actif (action peu réversible).</li>
+          <li>Le badge en haut à droite de l'écran (« X incidents à traiter ») compte les contenants <strong>cassés + perdus</strong> et t'amène directement sur cet onglet.</li>
         </ul>
       </div>
 
@@ -401,7 +407,7 @@
         <h2>📐 Onglet « Types de contenants »</h2>
         <p class="sub">Gérer les modèles de contenants (dimensions, description, photo, catégorie).</p>
         <ul>
-          <li>Chaque type est identifié par une lettre et regroupe des dimensions (longueur/largeur/hauteur), une description et une photo optionnelles, et peut être rattaché à une catégorie.</li>
+          <li>Chaque type est identifié par une lettre et regroupe des dimensions (longueur/largeur/hauteur), une description et une photo optionnelles, et peut être rattaché à une <strong>catégorie</strong> : c'est elle qui détermine la série de numérotation (préfixe) des contenants de ce type.</li>
           <li>Le bouton de génération de <strong>book PDF</strong> exporte un catalogue complet, une page par type, avec photo et caractéristiques.</li>
         </ul>
       </div>
@@ -416,17 +422,23 @@
 
       <div class="panel">
         <h2>🏷️ Onglet « Catégories »</h2>
-        <p class="sub">Regrouper les types de contenants par grande famille.</p>
+        <p class="sub">Regrouper les types par grande famille et définir leur numérotation.</p>
         <ul>
-          <li>Chaque catégorie a un nom et une couleur, utilisés notamment dans les filtres et les statistiques.</li>
+          <li>Chaque catégorie a un nom, une couleur et un <strong>préfixe de numérotation</strong> (ex. 05203, 052040, 052080), renseigné via le bouton <strong>« Modifier »</strong>.</li>
+          <li>Le préfixe détermine la série de numéros générés pour les types rattachés : une nouvelle série démarre à <strong>…001</strong> (ex. 052040 → 052040000000000001) ; la série bois existante continue à sa valeur actuelle.</li>
+          <li>Chaque catégorie possède son propre <strong>compteur</strong> : les numérotations des différentes séries ne se mélangent jamais.</li>
+          <li>Le nom et la couleur sont utilisés dans les filtres, les tableaux et les statistiques ; la colonne « Préfixe numérotation » rappelle la série de chaque catégorie.</li>
+          <li>La suppression d'une catégorie est bloquée tant que des types y sont rattachés.</li>
         </ul>
       </div>
 
       <div class="panel">
         <h2>📊 Onglet « Statistiques »</h2>
-        <p class="sub">Vue d'ensemble de l'état du parc.</p>
+        <p class="sub">Vue d'ensemble de l'état du parc, pertes comprises.</p>
         <ul>
-          <li>Répartition globale par statut (en service / cassé / réformé), et détail par type et par catégorie, avec taux de casse.</li>
+          <li>Répartition globale par statut : en service, cassés, <strong>perdus</strong>, réformés, avec le pourcentage du parc pour chaque statut.</li>
+          <li>Détail par type et par catégorie, avec un <strong>taux d'incident</strong> (cassés + perdus) pour chaque famille.</li>
+          <li>Le badge d'alerte en haut de l'écran signale en permanence le nombre d'incidents (cassés + perdus) à traiter.</li>
         </ul>
       </div>
 
@@ -434,7 +446,7 @@
         <h2>👤 Onglet « Utilisateurs »</h2>
         <p class="sub">Visible uniquement pour les comptes ayant le rôle Administrateur — sert à gérer qui peut se connecter et avec quels droits.</p>
         <ul>
-          <li><strong>Compteur de numérotation automatique</strong> : affiche le dernier identifiant à 18 chiffres attribué, et permet de le forcer manuellement en cas de besoin (ex. correction d'une numérotation incohérente). À utiliser avec prudence : une valeur mal choisie peut provoquer des doublons.</li>
+          <li><strong>Compteur de numérotation</strong> : désormais <strong>par série</strong>. Choisis le préfixe (05203 / 052040 / 052080) pour afficher le dernier identifiant à 18 chiffres attribué dans cette série, et le forcer manuellement si besoin (ex. correction d'une numérotation incohérente). À utiliser avec prudence : une valeur mal choisie peut provoquer des doublons.</li>
           <li><strong>Ajouter un utilisateur</strong> : saisis son adresse e-mail et clique sur « Créer le compte ». La personne reçoit un e-mail pour définir elle-même son mot de passe ; son compte apparaît dans la liste dès sa 1ère connexion.</li>
           <li><strong>Liste des utilisateurs</strong> : recense tous les comptes s'étant déjà connectés au moins une fois (impossible de lister un compte qui ne s'est jamais connecté).</li>
           <li><strong>Prénom / Nom</strong> : modifiables directement dans le tableau ; ils s'affichent ensuite dans le bandeau en haut de l'écran, à la place de l'adresse e-mail, pour la personne concernée.</li>
@@ -448,9 +460,10 @@
         <ul>
           <li>La session se déconnecte automatiquement après <strong>8 heures d'inactivité</strong>.</li>
           <li>Le mot de passe se change depuis le bouton en haut à droite de l'écran.</li>
-          <li>Le bandeau en haut à droite affiche ton prénom et ton nom dès qu'ils sont renseignés (onglet Utilisateurs) ; sinon, ton adresse e-mail s'affiche par défaut.</li>
+          <li>Un contenant <strong>perdu</strong> qui est retrouvé peut être <strong>remis en service</strong> (« réapparition ») : il repart dans le parc actif et disparaît des incidents à traiter.</li>
           <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
-          <li>La suppression d'un contenant ou la modification du compteur (réservées aux administrateurs) sont <strong>définitives et irréversibles</strong>.</li>
+          <li>Un numéro supprimé ou réservé n'est <strong>jamais réattribué</strong> : les compteurs ne font qu'avancer, ce qui évite toute confusion avec un contenant physique portant encore l'ancienne étiquette.</li>
+          <li>La suppression d'un contenant ou la modification d'un compteur (réservées aux administrateurs) sont <strong>définitives et irréversibles</strong>.</li>
         </ul>
       </div>
 
