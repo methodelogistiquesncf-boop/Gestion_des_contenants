@@ -1,16 +1,15 @@
 /* ===================================================================
-   BADGE D'ALERTE (contenants cassés en attente)
-   Affiché en permanence dans le bandeau, quel que soit l'onglet actif :
-   c'est l'information la plus actionnable de l'app et elle ne doit pas
-   être reléguée à l'onglet Statistiques.
+   BADGE D'ALERTE (incidents en attente)
    =================================================================== */
 function renderAlertChip(){
   const chip = document.getElementById('alert-chip-casse');
   const countEl = document.getElementById('alert-chip-count');
   if(!chip || !countEl) return;
   const nbCasse = Object.values(CONTENANTS).filter(c=> c.statut === 'casse').length;
-  if(nbCasse > 0){
-    countEl.textContent = nbCasse + (nbCasse > 1 ? ' cassés à traiter' : ' cassé à traiter');
+  const nbPerdu = Object.values(CONTENANTS).filter(c=> c.statut === 'perdu').length;
+  const total = nbCasse + nbPerdu;
+  if(total > 0){
+    countEl.textContent = total + (total > 1 ? ' incidents à traiter' : ' incident à traiter');
     chip.classList.add('visible');
   } else {
     chip.classList.remove('visible');
@@ -30,8 +29,10 @@ function renderStats(){
   const total = tous.length;
   const nbService = tous.filter(c=> c.statut === 'en_service').length;
   const nbCasse = tous.filter(c=> c.statut === 'casse').length;
+  const nbPerdu = tous.filter(c=> c.statut === 'perdu').length;
   const nbReforme = tous.filter(c=> c.statut === 'reforme').length;
   const tauxCasse = total ? Math.round((nbCasse / total) * 100) : 0;
+  const tauxPerdu = total ? Math.round((nbPerdu / total) * 100) : 0;
 
   kpisEl.innerHTML = `
     <div class="kpi-card">
@@ -48,6 +49,11 @@ function renderStats(){
       <div class="kpi-label">Cassés</div>
       <div class="kpi-value">${nbCasse}</div>
       <div class="kpi-sub">${tauxCasse}% du parc</div>
+    </div>
+    <div class="kpi-card" style="--kpi-val-color:#b45309;">
+      <div class="kpi-label">Perdus</div>
+      <div class="kpi-value" style="color:#b45309;">${nbPerdu}</div>
+      <div class="kpi-sub">${tauxPerdu}% du parc</div>
     </div>
     <div class="kpi-card accent-info">
       <div class="kpi-label">Réformés</div>
@@ -73,6 +79,10 @@ function renderStats(){
       <div class="stat-bar-track"><div class="stat-bar-fill danger" style="width:${pct(nbCasse)}%"></div></div>
     </div>
     <div class="stat-bar-row">
+      <div class="stat-bar-label"><span>Perdus</span><span>${nbPerdu} (${pct(nbPerdu)}%)</span></div>
+      <div class="stat-bar-track"><div class="stat-bar-fill" style="background:#b45309; width:${pct(nbPerdu)}%"></div></div>
+    </div>
+    <div class="stat-bar-row">
       <div class="stat-bar-label"><span>Réformés</span><span>${nbReforme} (${pct(nbReforme)}%)</span></div>
       <div class="stat-bar-track"><div class="stat-bar-fill info" style="width:${pct(nbReforme)}%"></div></div>
     </div>`;
@@ -93,19 +103,21 @@ function renderStatsParType(){
     return;
   }
 
-  let html = '<table><thead><tr><th>Type</th><th>Total</th><th>En service</th><th>Cassé</th><th>Réformé</th><th>Taux de casse</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Type</th><th>Total</th><th>En service</th><th>Cassé</th><th>Perdu</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
   lettres.forEach(l=>{
     const items = tous.filter(c=> c.typeLettre === l);
     const total = items.length;
     const nbServiceT = items.filter(c=> c.statut === 'en_service').length;
     const nbCasseT = items.filter(c=> c.statut === 'casse').length;
+    const nbPerduT = items.filter(c=> c.statut === 'perdu').length;
     const nbReformeT = items.filter(c=> c.statut === 'reforme').length;
-    const tauxT = total ? Math.round((nbCasseT/total)*100) : 0;
+    const tauxT = total ? Math.round(((nbCasseT + nbPerduT)/total)*100) : 0;
     html += `<tr>
       <td class="mono"><strong>${l}</strong></td>
       <td>${total}</td>
       <td>${nbServiceT}</td>
       <td>${nbCasseT}</td>
+      <td>${nbPerduT}</td>
       <td>${nbReformeT}</td>
       <td>${tauxT}%</td>
     </tr>`;
@@ -114,10 +126,6 @@ function renderStatsParType(){
   el.innerHTML = html;
 }
 
-// Ventilation des contenants par catégorie (Bois / Métallique / etc.),
-// calculée à partir de la catégorie du type auquel chaque contenant
-// appartient. Les contenants dont le type n'a pas de catégorie sont
-// regroupés sous "Non catégorisé".
 function renderStatsParCategorie(){
   const el = document.getElementById('stats-par-categorie');
   if(!el) return;
@@ -132,7 +140,7 @@ function renderStatsParCategorie(){
   const groupes = catIds.map(id=> ({id, nom: CATEGORIES[id].nom}));
   groupes.push({id: null, nom: 'Non catégorisé'});
 
-  let html = '<table><thead><tr><th>Catégorie</th><th>Total</th><th>En service</th><th>Cassé</th><th>Réformé</th><th>Taux de casse</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Catégorie</th><th>Total</th><th>En service</th><th>Cassé</th><th>Perdu</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
   groupes.forEach(g=>{
     const items = tous.filter(c=>{
       const t = TYPES[c.typeLettre];
@@ -140,16 +148,18 @@ function renderStatsParCategorie(){
       return catId === g.id;
     });
     const total = items.length;
-    if(total === 0 && g.id === null) return; // pas de ligne "Non catégorisé" si vide
+    if(total === 0 && g.id === null) return; 
     const nbServiceT = items.filter(c=> c.statut === 'en_service').length;
     const nbCasseT = items.filter(c=> c.statut === 'casse').length;
+    const nbPerduT = items.filter(c=> c.statut === 'perdu').length;
     const nbReformeT = items.filter(c=> c.statut === 'reforme').length;
-    const tauxT = total ? Math.round((nbCasseT/total)*100) : 0;
+    const tauxT = total ? Math.round(((nbCasseT + nbPerduT)/total)*100) : 0;
     html += `<tr>
       <td>${g.id ? badgeCategorie(g.id) : '<span class="badge-cat badge-cat-empty">Non catégorisé</span>'}</td>
       <td>${total}</td>
       <td>${nbServiceT}</td>
       <td>${nbCasseT}</td>
+      <td>${nbPerduT}</td>
       <td>${nbReformeT}</td>
       <td>${tauxT}%</td>
     </tr>`;

@@ -256,6 +256,7 @@ function libelleStatut(statut){
   switch(statut){
     case 'en_service': return '<span class="badge badge-ok">' + ICON_STATUT_OK + 'En service</span>';
     case 'casse': return '<span class="badge badge-attention">' + ICON_STATUT_ATTENTION + 'Cassé</span>';
+    case 'perdu': return '<span class="badge" style="background:#fde68a; color:#b45309;">' + ICON_STATUT_ATTENTION + 'Perdu</span>';
     case 'reforme': return '<span class="badge badge-neutral">' + ICON_STATUT_NEUTRE + 'Réformé</span>';
     default: return statut;
   }
