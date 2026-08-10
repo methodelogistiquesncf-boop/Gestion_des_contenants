@@ -1,18 +1,24 @@
 /* ===================================================================
    CONTENANTS — NUMÉROTATION PAR CATÉGORIE
-   Chaque catégorie a son propre PRÉFIXE et son propre compteur Firestore.
+   Chaque catégorie a son propre PRÉFIXE et son propre compteur Firestore
+   (document "compteurs/prefixe-XXXX"). Le préfixe d'une catégorie se
+   renseigne dans l'onglet Catégories via le bouton "Modifier".
    =================================================================== */
 
+/* --- Préfixes par défaut (repli si non renseigné dans la catégorie) --- */
 const PREFIXES_DEFAUT = {
-  'Caisse Bois':      '05203',
+  'Caisse Bois':      '052030',
   'Praticable':       '052040',
   'Caisse Plastique': '052080'
 };
 const PREFIXE_DEFAUT = '05203';
 
 const IDENTIFIANT_INITIAL = '052030000000000000';
-const IDENTIFIANT_LONGUEUR = IDENTIFIANT_INITIAL.length;
+const IDENTIFIANT_LONGUEUR = IDENTIFIANT_INITIAL.length; // 18 chiffres
 
+/* -------------------------------------------------------------------
+   INCRÉMENTATION D'UN IDENTIFIANT (chaîne de chiffres)
+   ------------------------------------------------------------------- */
 function incrementerIdentifiant(str){
   const chiffres = str.split('');
   let i = chiffres.length - 1;
@@ -23,11 +29,21 @@ function incrementerIdentifiant(str){
   return '1' + chiffres.join('');
 }
 
+// Premier numéro d'une série : préfixe complété de zéros jusqu'à 18
+// chiffres, puis incrémenté de 1 pour que la série démarre à …001
 function identifiantInitialPourPrefixe(prefixe){
   return incrementerIdentifiant(prefixe.padEnd(IDENTIFIANT_LONGUEUR, '0'));
 }
 
-function normaliserNom(nom){ return (nom || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+/* -------------------------------------------------------------------
+   RÉSOLUTION DU PRÉFIXE D'UNE CATÉGORIE
+   1) Préfixe renseigné dans l'onglet Catégories (recommandé)
+   2) Repli par nom de catégorie (tableau PREFIXES_DEFAUT)
+   3) Repli sur PREFIXE_DEFAUT (05203)
+   ------------------------------------------------------------------- */
+function normaliserNom(nom){
+  return (nom || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 
 function prefixePourCategorieId(catId){
   const cat = catId && CATEGORIES[catId] ? CATEGORIES[catId] : null;
@@ -52,6 +68,12 @@ function refCompteurPourPrefixe(prefixe){
   return db.collection('compteurs').doc('prefixe-' + prefixe);
 }
 
+/* -------------------------------------------------------------------
+   DERNIER NUMÉRO CONNU D'UNE SÉRIE
+   Utilisé quand le compteur de la série n'existe pas encore : on repart
+   du plus grand identifiant déjà présent dans la série, ou de l'ancien
+   compteur "compteurs/contenants" pour le préfixe 05203.
+   ------------------------------------------------------------------- */
 function dernierConnusPourPrefixe(prefixe){
   const legacyRef = db.collection('compteurs').doc('contenants');
   const queryRef = db.collection('contenants')
@@ -80,6 +102,9 @@ function prochainIdentifiantPourPrefixe(prefixe){
   });
 }
 
+/* -------------------------------------------------------------------
+   GÉNÉRATION D'UN IDENTIFIANT (prévisualisation, rien n'est écrit)
+   ------------------------------------------------------------------- */
 function genererIdentifiant(){
   const idInput = document.getElementById('new-id');
   const prefixe = prefixeDuTypeSelectionne();
@@ -90,6 +115,9 @@ function genererIdentifiant(){
   }).catch(err=> toast("Erreur de génération : " + err.message, 'err'));
 }
 
+/* ===================================================================
+   IMPRESSION EN MASSE
+   =================================================================== */
 const LOT_QUANTITE_MAX = 100;
 
 function reserverLotIdentifiants(quantite, prefixe){
@@ -111,6 +139,7 @@ function reserverLotIdentifiants(quantite, prefixe){
   }));
 }
 
+// Sélecteur de catégorie pour le lot : créé si absent de index.html
 function garantirSelectLotCategorie(){
   if(document.getElementById('lot-categorie')) return;
   const titreInput = document.getElementById('lot-titre');
@@ -162,17 +191,25 @@ function lancerImpressionLot(){
     .finally(()=> clearBtnLoading(btn));
 }
 
+/* -------------------------------------------------------------------
+   VÉRIFICATION DU FORMAT AUTO (18 chiffres)
+   ------------------------------------------------------------------- */
 function estIdentifiantAuto(id){
   return typeof id === 'string' && id.length === IDENTIFIANT_LONGUEUR && /^[0-9]+$/.test(id);
 }
 
+/* ===================================================================
+   COMPTEUR MANUEL (onglet Utilisateurs — administrateur)
+   =================================================================== */
 function rafraichirAffichageCompteur(){
   const sel = document.getElementById('compteur-prefixe');
   const aff = document.getElementById('compteur-valeur-actuelle');
   if(!sel || !aff) return;
   const prefixe = sel.value;
   refCompteurPourPrefixe(prefixe).get().then(doc=>{
-    aff.textContent = (doc.exists && doc.data().dernier) ? doc.data().dernier : '(aucune valeur — la série démarrera à ' + identifiantInitialPourPrefixe(prefixe) + ')';
+    aff.textContent = (doc.exists && doc.data().dernier)
+      ? doc.data().dernier
+      : '(aucune valeur — la série démarrera à ' + identifiantInitialPourPrefixe(prefixe) + ')';
   }).catch(()=>{ aff.textContent = '—'; });
 }
 
@@ -222,6 +259,9 @@ function enregistrerCompteurManuel(btn){
     .finally(()=> clearBtnLoading(btn));
 }
 
+/* ===================================================================
+   SUPPRESSION D'UN CONTENANT (administrateur)
+   =================================================================== */
 function supprimerContenant(identifiant){
   if(!confirm(
     "Supprimer définitivement le contenant " + identifiant + " ?\n\n" +
@@ -232,6 +272,11 @@ function supprimerContenant(identifiant){
     .catch(err=> toast("Erreur : " + err.message, 'err'));
 }
 
+/* ===================================================================
+   CRÉATION D'UN CONTENANT
+   Transaction anti-doublon + mise à jour du compteur de la série
+   correspondant à la catégorie du type choisi.
+   =================================================================== */
 function creerContenant(btn){
   const idInput = document.getElementById('new-id');
   const identifiant = idInput.value.trim();
@@ -253,9 +298,14 @@ function creerContenant(btn){
       if(contDoc.exists) throw new Error('DUPLICATE');
       tx.set(ref, {
         identifiant, typeLettre, statut: 'en_service',
-        emplacementId: null, dateCreation: now, dateCasse: null, dateReparation: null, datePerte: null,
+        emplacementId: null,
+        dateCreation: now, dateCasse: null, dateReparation: null, datePerte: null,
         photoCasse: null, photoPerte: null,
-        historique: [{date: now, action: 'creation', statut: 'en_service', emplacementId: null, commentaire: 'Enregistrement du contenant', utilisateur: obtenirNomUtilisateurPourHistorique()}]
+        historique: [{
+          date: now, action: 'creation', statut: 'en_service',
+          emplacementId: null, commentaire: 'Enregistrement du contenant',
+          utilisateur: obtenirNomUtilisateurPourHistorique()
+        }]
       });
       if(estIdentifiantAuto(identifiant) && identifiant.startsWith(prefixe)){
         const dernier = compteurDoc.exists ? (compteurDoc.data().dernier || null) : null;
@@ -274,6 +324,7 @@ function creerContenant(btn){
   }).finally(()=> clearBtnLoading(btn));
 }
 
+/* --- Support douchette code-barres (validation sur "Entrée") --- */
 document.getElementById('new-id').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); creerContenant(document.getElementById('btn-creer-contenant')); }
 });
@@ -281,6 +332,9 @@ document.getElementById('lookup-id').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupContenant(); }
 });
 
+/* ===================================================================
+   ICÔNES DE STATUT
+   =================================================================== */
 const ICON_STATUT_OK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>';
 const ICON_STATUT_ATTENTION = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>';
 const ICON_STATUT_NEUTRE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path></svg>';
@@ -301,6 +355,9 @@ function formatDate(ts){
   return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 }
 
+/* ===================================================================
+   HOOK SUR renderCategories POUR METTRE À JOUR LE SÉLECTEUR DE LOT
+   =================================================================== */
 if(typeof renderCategories === 'function'){
   const _renderCategoriesInitial = renderCategories;
   renderCategories = function(){
@@ -309,3 +366,11 @@ if(typeof renderCategories === 'function'){
     return resultat;
   };
 }
+
+/* ===================================================================
+   INITIALISATION AU CHARGEMENT
+   Crée le sélecteur de catégorie de l'impression en masse (s'il
+   manque dans index.html) et le remplit avec les catégories connues.
+   =================================================================== */
+garantirSelectLotCategorie();
+remplirSelectLotCategorie();
