@@ -51,7 +51,7 @@ function renderStats(){
       <div class="kpi-sub">${tauxCasse}% du parc</div>
     </div>
     <div class="kpi-card" style="--kpi-val-color:#b45309;">
-      <div class="kpi-label">Perdus</div>
+      <div class="kpi-label">Usage non conforme</div>
       <div class="kpi-value" style="color:#b45309;">${nbPerdu}</div>
       <div class="kpi-sub">${tauxPerdu}% du parc</div>
     </div>
@@ -79,7 +79,7 @@ function renderStats(){
       <div class="stat-bar-track"><div class="stat-bar-fill danger" style="width:${pct(nbCasse)}%"></div></div>
     </div>
     <div class="stat-bar-row">
-      <div class="stat-bar-label"><span>Perdus</span><span>${nbPerdu} (${pct(nbPerdu)}%)</span></div>
+      <div class="stat-bar-label"><span>Usage non conforme</span><span>${nbPerdu} (${pct(nbPerdu)}%)</span></div>
       <div class="stat-bar-track"><div class="stat-bar-fill" style="background:#b45309; width:${pct(nbPerdu)}%"></div></div>
     </div>
     <div class="stat-bar-row">
@@ -103,7 +103,7 @@ function renderStatsParType(){
     return;
   }
 
-  let html = '<table><thead><tr><th>Type</th><th>Total</th><th>En service</th><th>Cassé</th><th>Perdu</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Type</th><th>Total</th><th>En service</th><th>Cassé</th><th>Usage non conforme</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
   lettres.forEach(l=>{
     const items = tous.filter(c=> c.typeLettre === l);
     const total = items.length;
@@ -140,7 +140,7 @@ function renderStatsParCategorie(){
   const groupes = catIds.map(id=> ({id, nom: CATEGORIES[id].nom}));
   groupes.push({id: null, nom: 'Non catégorisé'});
 
-  let html = '<table><thead><tr><th>Catégorie</th><th>Total</th><th>En service</th><th>Cassé</th><th>Perdu</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Catégorie</th><th>Total</th><th>En service</th><th>Cassé</th><th>Usage non conforme</th><th>Réformé</th><th>Taux incident</th></tr></thead><tbody>';
   groupes.forEach(g=>{
     const items = tous.filter(c=>{
       const t = TYPES[c.typeLettre];

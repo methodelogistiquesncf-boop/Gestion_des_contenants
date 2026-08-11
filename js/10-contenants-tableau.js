@@ -48,7 +48,7 @@ function exporterContenantsExcel(){
   if(rows.length === 0){ toast("Aucun contenant à exporter avec ces filtres.", 'err'); return; }
 
 const libelleStatutTexte = statut => ({
-  en_service: 'En service', casse: 'Cassé', perdu: 'Perdu', reforme: 'Réformé'
+  en_service: 'En service', casse: 'Cassé', perdu: 'Usage non conforme', reforme: 'Réformé'
 }[statut] || statut);
 
   const entetes = ['Identifiant', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];

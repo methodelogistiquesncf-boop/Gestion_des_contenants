@@ -30,7 +30,7 @@ function renderCasseListe(){
   let html = '<table><thead><tr><th>Identifiant</th><th>Type</th><th>Statut</th><th>Emplacement</th><th>Depuis le</th></tr></thead><tbody>';
   rows.forEach(c=>{
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '—';
-    const statutTexte = c.statut === 'perdu' ? 'Perdu' : 'Cassé';
+    const statutTexte = c.statut === 'perdu' ? 'Usage non conforme' : 'Cassé';
     const dateObj = c.dateCasse || c.datePerte;
     html += `<tr class="clickable" onclick="ouvrirFicheDepuisListeCasse('${c.identifiant}')">
       <td class="mono">${c.identifiant}</td>
@@ -133,13 +133,13 @@ function lookupContenant(){
       <hr style="margin:18px 0; border:0; border-top:1px solid var(--line);">
       <div class="form-row" style="margin-top:4px;">
         <div style="flex:2; min-width:160px;">
-          <label class="small" for="perte-commentaire">Commentaire perte</label>
-          <input type="text" id="perte-commentaire" placeholder="Ex: Perdu lors transport">
+          <label class="small" for="perte-commentaire">Commentaire</label>
+          <input type="text" id="perte-commentaire" placeholder="Ex: Utilisation hors procédure">
         </div>
       </div>
       <div class="form-row" style="margin-top:12px; align-items:flex-end;">
         <div>
-          <label class="small" for="perte-photo">Photo du contenant perdu</label>
+          <label class="small" for="perte-photo">Photo (facultatif)</label>
           <input type="file" id="perte-photo" accept="image/*" capture="environment" onchange="previewPhotoPerte(event)">
         </div>
         <div id="perte-photo-preview-wrap" style="display:none; align-items:center; gap:10px;">
@@ -148,7 +148,7 @@ function lookupContenant(){
         </div>
         <div style="flex:1;"></div>
         <div style="flex:0;">
-          <button class="btn" style="background:#b45309; color:white; border:none;" onclick="declarerPerdu(this)">Déclarer perdu</button>
+          <button class="btn" style="background:#b45309; color:white; border:none;" onclick="declarerPerdu(this)">Déclarer usage non conforme</button>
         </div>
       </div>`;
   } else if(c.statut === 'perdu'){
