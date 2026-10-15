@@ -350,6 +350,22 @@ input[type=file]{
 .type-thumb:hover{ filter:brightness(0.95); }
 .type-thumb-empty{ color:var(--ink-soft); font-size:12px; }
 
+/* ===================================================================
+   FORMAT D'IMPRESSION CHOISI PAR L'UTILISATEUR
+   L'attribut data-print-format sur le body contrôle l'affichage
+   =================================================================== */
+
+/* Aperçu à l'écran */
+body[data-print-format="a4-paysage-1"] .barcode-label {
+  aspect-ratio: 297 / 210;
+  width: min(90vw, 560px);
+}
+
+body[data-print-format="a4-portrait-2"] .barcode-label {
+  aspect-ratio: 210 / 148.5;
+  width: min(90vw, 340px);
+}
+
 @media print{
   body *{ visibility:hidden; }
   #modal-barcode, #modal-barcode *{ visibility:visible; }
@@ -365,11 +381,8 @@ input[type=file]{
   }
   #barcode-modal-actions{ display:none; }
 
-  /* Petite marge de sécurité : certaines imprimantes ont une bordure
-     matérielle non imprimable de quelques mm. On dimensionne les
-     étiquettes par rapport à cette zone utile plutôt qu'aux 210 × 297 mm
-     bruts de la feuille. */
-  @page{ size:A4 portrait; margin:6mm; }
+  /* @page est maintenant injecté dynamiquement par JavaScript
+     via la fonction appliquerFormatImpression() dans js/11-codes-barres.js */
 
   html, body{ height:100%; margin:0; padding:0; }
 
@@ -382,12 +395,8 @@ input[type=file]{
   }
   .modal h3, .modal .close-x{ display:none; }
 
-  /* Zone imprimable réelle une fois la marge de 6mm de @page retirée :
-     210 - 2*6 = 198mm de large, 297 - 2*6 = 285mm de haut.
-     Chaque étiquette = une demi-page verticale (198 × 142,5 mm) ;
-     deux étiquettes empilées remplissent exactement une feuille A4.
-     Saut de page toutes les 2 étiquettes. */
-  .barcode-print-zone{ display:block; padding:0; gap:0; width:198mm; }
+  /* Zone d'impression */
+  .barcode-print-zone{ display:block; padding:0; gap:0; }
 
   /* Centrage via display:table / table-cell plutôt que flexbox.
      Chrome a un bug connu où un conteneur flex ne se comporte pas
@@ -400,7 +409,6 @@ input[type=file]{
      avec vertical-align:middle + text-align:center. */
   .barcode-label{
     display:table;
-    width:198mm; height:142.5mm;
     border:none; border-radius:0; padding:0;
     box-sizing:border-box;
   }
@@ -412,15 +420,81 @@ input[type=file]{
   }
   .barcode-title{
     display:block;
-    font-size:16mm; font-weight:800; letter-spacing:1mm;
-    margin-bottom:6mm;
+    font-weight:800;
   }
   .barcode-label .barcode-svg-lot{
-    width:170mm; max-width:170mm; height:auto;
+    height:auto;
     display:inline-block;
   }
-  .barcode-label:nth-child(2n){ page-break-after:always; break-after:page; }
-  .barcode-label:last-child{ page-break-after:auto; break-after:auto; }
+
+  /* -------------------------------------------------------------
+     FORMAT A4 PORTRAIT - 2 étiquettes par page
+     Zone imprimable avec marges 6mm :
+     210 - 2*6 = 198mm
+     297 - 2*6 = 285mm
+     Une étiquette = 198 × 142.5 mm
+     ------------------------------------------------------------- */
+  body[data-print-format="a4-portrait-2"] .barcode-print-zone {
+    width: 198mm;
+  }
+
+  body[data-print-format="a4-portrait-2"] .barcode-label {
+    width: 198mm;
+    height: 142.5mm;
+  }
+
+  body[data-print-format="a4-portrait-2"] .barcode-label:nth-child(2n) {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  body[data-print-format="a4-portrait-2"] .barcode-label:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  body[data-print-format="a4-portrait-2"] .barcode-label .barcode-svg-lot {
+    width: 170mm;
+    max-width: 170mm;
+  }
+
+  body[data-print-format="a4-portrait-2"] .barcode-title {
+    font-size: 16mm;
+    margin-bottom: 6mm;
+  }
+
+  /* -------------------------------------------------------------
+     FORMAT A4 PAYSAGE - 1 code-barres par page
+     Zone imprimable avec marges 6mm :
+     297 - 2*6 = 285mm
+     210 - 2*6 = 198mm
+     Une étiquette = 285 × 198 mm
+     ------------------------------------------------------------- */
+  body[data-print-format="a4-paysage-1"] .barcode-print-zone {
+    width: 285mm;
+  }
+
+  body[data-print-format="a4-paysage-1"] .barcode-label {
+    width: 285mm;
+    height: 198mm;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  body[data-print-format="a4-paysage-1"] .barcode-label:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  body[data-print-format="a4-paysage-1"] .barcode-label .barcode-svg-lot {
+    width: 250mm;
+    max-width: 250mm;
+  }
+
+  body[data-print-format="a4-paysage-1"] .barcode-title {
+    font-size: 18mm;
+    margin-bottom: 8mm;
+  }
 }
 
 .badge-cat{
