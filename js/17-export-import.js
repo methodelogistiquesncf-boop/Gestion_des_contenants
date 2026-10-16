@@ -1,13 +1,25 @@
 /* ===================================================================
-   EXPORT / IMPORT - SAUVEGARDE ET RESTAURATION DES DONNÉES
-   Fonctionnalités admin uniquement :
-   - Export Excel multi-feuilles (Contenants, Types, Emplacements, Catégories)
-   - Export JSON (backup complet)
-   - Import JSON (restauration avec confirmation)
+   EXPORT / IMPORT - SAUVEGARDE ET RESTAURATION COMPLÈTE
+   Version B : Sauvegarde TOUTES les collections Firestore
    =================================================================== */
 
 /* -------------------------------------------------------------------
-   EXPORT EXCEL (MULTI-FEUILLES)
+   CONFIGURATION : Liste des collections à sauvegarder
+   ⚠️ IMPORTANT : Modifie cette liste si tu ajoutes des collections
+   ------------------------------------------------------------------- */
+const COLLECTIONS_A_SAUVAGARDER = [
+    'contenants',           // Contenant + historique
+    'typesContenants',      // Catalogue des types
+    'emplacements',         // Emplacements de réparation
+    'categoriesContenants', // Catégories avec préfixes
+    'utilisateurs',         // Comptes utilisateurs
+    'configGlobale',        // Configuration (compteur, etc.)
+    // Ajoute ici d'autres collections si nécessaire
+    // 'autreCollection',
+];
+
+/* -------------------------------------------------------------------
+   EXPORT EXCEL (MULTI-FEUILLES) - Rapports lisibles
    ------------------------------------------------------------------- */
 function exporterExcelComplet() {
     try {
@@ -59,6 +71,17 @@ function exporterExcelComplet() {
             'Préfixe': c.prefixe || ''
         }));
 
+        // Feuille 5 : Utilisateurs
+        const utilisateursData = Object.entries(UTILISATEURS).map(([uid, u]) => ({
+            'UID': uid,
+            'Email': u.email || '',
+            'Prénom': u.prenom || '',
+            'Nom': u.nom || '',
+            'Rôle': u.role || 'Utilisateur',
+            'Date création': u.dateCreation ? formatTimestampPourExport(u.dateCreation) : '',
+            'Dernière connexion': u.derniereConnexion ? formatTimestampPourExport(u.derniereConnexion) : ''
+        }));
+
         // Création du workbook
         const wb = XLSX.utils.book_new();
         
@@ -66,23 +89,27 @@ function exporterExcelComplet() {
         const wsTypes = XLSX.utils.json_to_sheet(typesData);
         const wsEmplacements = XLSX.utils.json_to_sheet(emplacementsData);
         const wsCategories = XLSX.utils.json_to_sheet(categoriesData);
+        const wsUtilisateurs = XLSX.utils.json_to_sheet(utilisateursData);
 
         // Ajustement largeurs colonnes
         wsContenants['!cols'] = [{wch:20}, {wch:8}, {wch:18}, {wch:18}, {wch:30}, {wch:18}, {wch:15}, {wch:20}, {wch:15}];
         wsTypes['!cols'] = [{wch:8}, {wch:12}, {wch:12}, {wch:12}, {wch:40}, {wch:18}, {wch:10}];
         wsEmplacements['!cols'] = [{wch:20}, {wch:25}, {wch:40}];
         wsCategories['!cols'] = [{wch:20}, {wch:25}, {wch:12}, {wch:15}];
+        wsUtilisateurs['!cols'] = [{wch:28}, {wch:30}, {wch:15}, {wch:15}, {wch:12}, {wch:20}, {wch:20}];
 
         XLSX.utils.book_append_sheet(wb, wsContenants, "Contenants");
         XLSX.utils.book_append_sheet(wb, wsTypes, "Types");
         XLSX.utils.book_append_sheet(wb, wsEmplacements, "Emplacements");
         XLSX.utils.book_append_sheet(wb, wsCategories, "Catégories");
+        XLSX.utils.book_append_sheet(wb, wsUtilisateurs, "Utilisateurs");
 
         // Téléchargement
         const date = new Date().toISOString().slice(0,10);
         XLSX.writeFile(wb, `export-contenants-${date}.xlsx`);
         
-        toast("Export Excel réussi ! " + contenantsData.length + " contenants, " + typesData.length + " types.", 'ok');
+        toast("Export Excel réussi ! " + contenantsData.length + " contenants, " + 
+              typesData.length + " types, " + utilisateursData.length + " utilisateurs.", 'ok');
     } catch(err) {
         toast("Erreur export Excel : " + err.message, 'err');
         console.error(err);
@@ -90,58 +117,65 @@ function exporterExcelComplet() {
 }
 
 /* -------------------------------------------------------------------
-   EXPORT JSON (BACKUP COMPLET)
+   EXPORT JSON (BACKUP COMPLET - TOUTES LES COLLECTIONS)
    ------------------------------------------------------------------- */
-function exporterJsonComplet() {
+async function exporterJsonComplet() {
     try {
-        // Conversion des Timestamps Firestore en ISO strings pour la portabilité
-        const serialiserTimestamp = (obj) => {
-            if (!obj) return null;
-            if (typeof obj === 'object' && obj.seconds !== undefined) {
-                return new Date(obj.seconds * 1000).toISOString();
-            }
-            if (Array.isArray(obj)) {
-                return obj.map(serialiserTimestamp);
-            }
-            if (typeof obj === 'object' && obj !== null) {
-                const result = {};
-                for (const key in obj) {
-                    result[key] = serialiserTimestamp(obj[key]);
-                }
-                return result;
-            }
-            return obj;
-        };
-
+        toast("Export en cours... Cela peut prendre quelques secondes.", 'info');
+        
         const backup = {
-            version: "1.0",
+            version: "2.0",
+            type: "BACKUP_COMPLET",
             dateExport: new Date().toISOString(),
             application: "Gestion des Contenants",
-            stats: {
-                contenants: Object.keys(CONTENANTS).length,
-                types: Object.keys(TYPES).length,
-                emplacements: Object.keys(EMPLACEMENTS).length,
-                categories: Object.keys(CATEGORIES).length
-            },
-            data: {
-                contenants: serialiserTimestamp(CONTENANTS),
-                types: serialiserTimestamp(TYPES),
-                emplacements: serialiserTimestamp(EMPLACEMENTS),
-                categories: serialiserTimestamp(CATEGORIES)
-            }
+            collections: {},
+            stats: {}
         };
 
+        let totalDocs = 0;
+
+        // Exporter CHAQUE collection
+        for (const collectionName of COLLECTIONS_A_SAUVAGARDER) {
+            try {
+                console.log(`Export collection : ${collectionName}`);
+                
+                const snapshot = await db.collection(collectionName).get();
+                const docs = {};
+                
+                snapshot.forEach(doc => {
+                    docs[doc.id] = serialiserPourExport(doc.data());
+                });
+                
+                backup.collections[collectionName] = docs;
+                backup.stats[collectionName] = Object.keys(docs).length;
+                totalDocs += Object.keys(docs).length;
+                
+                console.log(`  → ${Object.keys(docs).length} documents`);
+            } catch(err) {
+                console.warn(`Collection ${collectionName} non trouvée ou erreur :`, err);
+                backup.collections[collectionName] = {};
+                backup.stats[collectionName] = 0;
+            }
+        }
+
+        // Télécharger le fichier JSON
         const json = JSON.stringify(backup, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         const date = new Date().toISOString().slice(0,10);
         a.href = url;
-        a.download = `backup-contenants-${date}.json`;
+        a.download = `backup-complet-${date}.json`;
         a.click();
         URL.revokeObjectURL(url);
 
-        toast("Backup JSON exporté ! " + backup.stats.contenants + " contenants sauvegardés.", 'ok');
+        // Résumé
+        const resume = Object.entries(backup.stats)
+            .map(([col, count]) => `• ${col} : ${count} docs`)
+            .join('\n');
+        
+        toast(`Backup exporté ! Total : ${totalDocs} documents\n${resume}`, 'ok');
+        
     } catch(err) {
         toast("Erreur export JSON : " + err.message, 'err');
         console.error(err);
@@ -149,10 +183,9 @@ function exporterJsonComplet() {
 }
 
 /* -------------------------------------------------------------------
-   IMPORT JSON (RESTAURATION)
+   IMPORT JSON (RESTAURATION COMPLÈTE)
    ------------------------------------------------------------------- */
 function importerJson() {
-    // Créer un input file temporaire
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,application/json';
@@ -167,35 +200,49 @@ function importerJson() {
                 const backup = JSON.parse(event.target.result);
                 
                 // Validation de la structure
-                if (!backup.data || !backup.version) {
+                if (!backup.collections || !backup.version) {
                     toast("Fichier invalide : structure incorrecte.", 'err');
+                    return;
+                }
+
+                // Vérifier si c'est un backup complet ou ancien format
+                if (backup.type !== "BACKUP_COMPLET") {
+                    toast("Attention : Ce fichier semble être un ancien format de backup.", 'err');
                     return;
                 }
 
                 // Résumé de la sauvegarde
                 const stats = backup.stats || {};
+                const totalDocs = Object.values(stats).reduce((a, b) => a + b, 0);
+                
                 const resume = `
-                    Fichier de sauvegarde détecté :
-                    ─────────────────────────────
+                    ═══════════════════════════════════════
+                    FICHIER DE SAUVEGARDE COMPLÈTE DÉTECTÉ
+                    ═══════════════════════════════════════
+                    
                     Version : ${backup.version}
                     Date : ${new Date(backup.dateExport).toLocaleString('fr-FR')}
                     
-                    Contenu à restaurer :
-                    • ${stats.contenants || 0} contenants
-                    • ${stats.types || 0} types
-                    • ${stats.emplacements || 0} emplacements
-                    • ${stats.categories || 0} catégories
+                    CONTENU À RESTAURER :
+                    ${Object.entries(stats).map(([col, count]) => `• ${col} : ${count} documents`).join('\n')}
                     
-                    ATTENTION : Cette opération va REMPLACER toutes 
-                    les données actuelles. Cette action est IRRÉVERSIBLE.
+                    TOTAL : ${totalDocs} documents
+                    
+                    ⚠️ ATTENTION : Cette opération va REMPLACER
+                    TOUTES les données actuelles par celles du backup.
+                    
+                    Cette action est IRRÉVERSIBLE.
                     
                     Continuer ?
                 `;
 
                 if (!confirm(resume)) return;
 
-                // Restauration des données
-                restaurerDonnees(backup.data);
+                // Double confirmation pour les admins
+                if (!confirm("Êtes-vous VRAIMENT sûr ? Toutes les données actuelles seront écrasées.")) return;
+
+                // Restauration
+                restaurerToutesCollections(backup.collections);
                 
             } catch(err) {
                 toast("Erreur lecture fichier : " + err.message, 'err');
@@ -208,108 +255,121 @@ function importerJson() {
     input.click();
 }
 
-async function restaurerDonnees(data) {
+/* -------------------------------------------------------------------
+   RESTAURATION COMPLÈTE DE TOUTES LES COLLECTIONS
+   ------------------------------------------------------------------- */
+async function restaurerToutesCollections(collections) {
     try {
-        // Désérialisation des timestamps ISO vers Firestore Timestamps
-        const deserialiserTimestamp = (obj) => {
-            if (!obj) return null;
-            if (typeof obj === 'string' && !isNaN(Date.parse(obj)) && obj.includes('T')) {
-                return firebase.firestore.Timestamp.fromDate(new Date(obj));
-            }
-            if (Array.isArray(obj)) {
-                return obj.map(deserialiserTimestamp);
-            }
-            if (typeof obj === 'object' && obj !== null) {
-                const result = {};
-                for (const key in obj) {
-                    result[key] = deserialiserTimestamp(obj[key]);
-                }
-                return result;
-            }
-            return obj;
-        };
-
-        let operationsCount = 0;
+        toast("🔄 Restauration en cours... Ne fermez PAS la page.", 'info');
         
-        // Afficher un indicateur de chargement
-        toast("Restauration en cours... Ne fermez pas la page.", 'info');
+        let totalOperations = 0;
+        let collectionsRestaurees = 0;
 
-        // Batch write pour contenants
-        if (data.contenants) {
-            const batch = db.batch();
-            const entries = Object.entries(data.contenants);
+        for (const [collectionName, docs] of Object.entries(collections)) {
+            const entries = Object.entries(docs);
+            if (entries.length === 0) continue;
+
+            console.log(`Restauration collection : ${collectionName} (${entries.length} docs)`);
+
+            // Batch writes de 500 max (limite Firestore)
+            for (let i = 0; i < entries.length; i += 500) {
+                const batch = db.batch();
+                const chunk = entries.slice(i, i + 500);
+                
+                chunk.forEach(([docId, docData]) => {
+                    const ref = db.collection(collectionName).doc(docId);
+                    batch.set(ref, deserialiserPourImport(docData));
+                });
+                
+                await batch.commit();
+                totalOperations += chunk.length;
+                
+                // Progression
+                const progress = Math.round((i + chunk.length) / entries.length * 100);
+                console.log(`  → Progression : ${progress}%`);
+            }
             
-            // Limite de 500 opérations par batch Firestore
-            for (let i = 0; i < entries.length; i += 500) {
-                const chunk = entries.slice(i, i + 500);
-                chunk.forEach(([id, docData]) => {
-                    const ref = db.collection('contenants').doc(id);
-                    batch.set(ref, deserialiserTimestamp(docData));
-                });
-                await batch.commit();
-                operationsCount += chunk.length;
-            }
+            collectionsRestaurees++;
         }
 
-        // Batch write pour types
-        if (data.types) {
-            const batch = db.batch();
-            const entries = Object.entries(data.types);
-            for (let i = 0; i < entries.length; i += 500) {
-                const chunk = entries.slice(i, i + 500);
-                chunk.forEach(([lettre, docData]) => {
-                    const ref = db.collection('typesContenants').doc(lettre);
-                    batch.set(ref, deserialiserTimestamp(docData));
-                });
-                await batch.commit();
-                operationsCount += chunk.length;
-            }
-        }
-
-        // Batch write pour emplacements
-        if (data.emplacements) {
-            const batch = db.batch();
-            const entries = Object.entries(data.emplacements);
-            for (let i = 0; i < entries.length; i += 500) {
-                const chunk = entries.slice(i, i + 500);
-                chunk.forEach(([id, docData]) => {
-                    const ref = db.collection('emplacements').doc(id);
-                    batch.set(ref, deserialiserTimestamp(docData));
-                });
-                await batch.commit();
-                operationsCount += chunk.length;
-            }
-        }
-
-        // Batch write pour catégories
-        if (data.categories) {
-            const batch = db.batch();
-            const entries = Object.entries(data.categories);
-            for (let i = 0; i < entries.length; i += 500) {
-                const chunk = entries.slice(i, i + 500);
-                chunk.forEach(([id, docData]) => {
-                    const ref = db.collection('categoriesContenants').doc(id);
-                    batch.set(ref, deserialiserTimestamp(docData));
-                });
-                await batch.commit();
-                operationsCount += chunk.length;
-            }
-        }
-
-        toast(`Restauration terminée ! ${operationsCount} documents restaurés. Les listeners vont recharger les données.`, 'ok');
+        toast(`✅ Restauration terminée !\n${totalOperations} documents restaurés dans ${collectionsRestaurees} collections.\nLes données seront rechargées automatiquement.`, 'ok');
         
-        // Les listeners Firestore vont automatiquement détecter les changements
-        // et rafraîchir l'interface
+        // Les listeners Firestore vont détecter les changements
+        // et rafraîchir l'interface automatiquement
         
     } catch(err) {
-        toast("Erreur restauration : " + err.message, 'err');
+        toast("❌ Erreur restauration : " + err.message, 'err');
         console.error(err);
     }
 }
 
 /* -------------------------------------------------------------------
-   UTILITAIRE : Formater timestamp pour Excel
+   UTILITAIRES : Sérialisation / Désérialisation
    ------------------------------------------------------------------- */
+function serialiserPourExport(obj) {
+    if (!obj) return null;
+    
+    // Firestore Timestamp -> ISO string
+    if (obj.seconds !== undefined && obj.nanoseconds !== undefined) {
+        return { __timestamp__: new Date(obj.seconds * 1000).toISOString() };
+    }
+    
+    // Firestore GeoPoint -> {lat, lng}
+    if (obj.latitude !== undefined && obj.longitude !== undefined) {
+        return { __geopoint__: { lat: obj.latitude, lng: obj.longitude } };
+    }
+    
+    // Arrays
+    if (Array.isArray(obj)) {
+        return obj.map(serialiserPourExport);
+    }
+    
+    // Objects
+    if (typeof obj === 'object' && obj !== null) {
+        const result = {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                result[key] = serialiserPourExport(obj[key]);
+            }
+        }
+        return result;
+    }
+    
+    return obj;
+}
+
+function deserialiserPourImport(obj) {
+    if (!obj) return null;
+    
+    // ISO string -> Firestore Timestamp
+    if (obj.__timestamp__) {
+        return firebase.firestore.Timestamp.fromDate(new Date(obj.__timestamp__));
+    }
+    
+    // GeoPoint
+    if (obj.__geopoint__) {
+        return new firebase.firestore.GeoPoint(obj.__geopoint__.lat, obj.__geopoint__.lng);
+    }
+    
+    // Arrays
+    if (Array.isArray(obj)) {
+        return obj.map(deserialiserPourImport);
+    }
+    
+    // Objects
+    if (typeof obj === 'object' && obj !== null) {
+        const result = {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                result[key] = deserialiserPourImport(obj[key]);
+            }
+        }
+        return result;
+    }
+    
+    return obj;
+}
+
 function formatTimestampPourExport(timestamp) {
     if (!timestamp) return '';
     try {
