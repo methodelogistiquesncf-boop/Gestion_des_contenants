@@ -45,7 +45,7 @@
       <div class="password-field">
         <input type="password" id="login-pass" autocomplete="current-password">
         <button type="button" class="eye-btn" id="login-pass-eye" onclick="toggleFieldVisibility('login-pass', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
       </div>
     </div>
@@ -185,6 +185,13 @@
           <div style="flex:1; min-width:160px;">
             <label class="small" for="lot-titre">Titre au-dessus du code-barres (facultatif)</label>
             <input type="text" id="lot-titre" placeholder="Ex. NCC" maxlength="24">
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="small" for="lot-format">Format d'impression</label>
+            <select id="lot-format">
+              <option value="a4-portrait-2">A4 portrait – 2 étiquettes / page</option>
+              <option value="a4-paysage-1">A4 paysage – 1 code-barres / page</option>
+            </select>
           </div>
           <div style="flex:0;">
             <button type="button" class="btn btn-primary" id="btn-lot-imprimer" onclick="lancerImpressionLot()">Réserver et imprimer le lot</button>
@@ -472,21 +479,59 @@
     <!-- ---------- VUE : UTILISATEURS (Administrateur uniquement) ---------- -->
     <section id="v-utilisateurs" class="view">
 
-      <div class="panel">
-        <h2>Compteur de numérotation automatique</h2>
-        <p class="sub">Dernier identifiant à 18 chiffres attribué. La génération automatique et la réservation de lots repartent de ce numéro. À ne modifier qu'en cas de nécessité (ex. correction d'une numérotation incohérente) : une valeur mal choisie peut provoquer des doublons.</p>
-        <div class="form-row">
-          <div>
-            <label class="small">Valeur actuelle</label>
-            <div id="compteur-valeur-actuelle" class="mono" style="padding:9px 0; font-size:15px;">—</div>
+      <!-- ═══════════════════════════════════════════════════════════
+           NOUVEAU : PANNEAU EXPORT / IMPORT (Option B - Backup complet)
+           ═══════════════════════════════════════════════════════════ -->
+      <div class="panel" style="border: 2px solid var(--primary); background: linear-gradient(135deg, rgba(44,95,138,0.05), rgba(44,95,138,0.02));">
+        <h2 style="display: flex; align-items: center; gap: 10px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Sauvegarde et restauration COMPLÈTE
+        </h2>
+        <p class="sub">
+          Exportez <strong>TOUTES les collections</strong> de votre base Firestore (contenants, types, 
+          emplacements, catégories, utilisateurs, config) pour une sauvegarde complète. 
+          Restaurez ensuite à l'identique.
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 20px;">
+          
+          <!-- Export Excel -->
+          <div class="export-card">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--text);">📊 Export Excel</h3>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">
+              Rapport lisible avec 5 feuilles : Contenants, Types, Emplacements, Catégories, Utilisateurs
+            </p>
+            <button class="btn btn-secondary" onclick="exporterExcelComplet()" style="width: 100%;">
+              Télécharger le rapport Excel
+            </button>
           </div>
-          <div style="flex:2; min-width:220px;">
-            <label class="small" for="compteur-nouvelle-valeur">Nouvelle valeur (18 chiffres)</label>
-            <input type="text" id="compteur-nouvelle-valeur" class="mono" placeholder="052030000000000000" maxlength="18" inputmode="numeric">
+          
+          <!-- Export JSON -->
+          <div class="export-card">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--text);">💾 Backup JSON Complet</h3>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">
+              Sauvegarde de <strong>toutes les collections</strong> Firestore. Format brut pour restauration.
+            </p>
+            <button class="btn btn-primary" onclick="exporterJsonComplet()" style="width: 100%;">
+              Exporter le backup complet
+            </button>
           </div>
-          <div style="flex:0;">
-            <button class="btn btn-danger" id="btn-modifier-compteur" onclick="enregistrerCompteurManuel(this)">Mettre à jour le compteur</button>
+          
+          <!-- Import JSON -->
+          <div class="export-card">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--danger);">⚠️ Restaurer un backup</h3>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">
+              Remplace <strong>TOUTES</strong> les données actuelles par celles du fichier de sauvegarde.
+            </p>
+            <button class="btn btn-danger" onclick="importerJson()" style="width: 100%;">
+              Choisir un fichier JSON
+            </button>
           </div>
+          
         </div>
       </div>
 
@@ -529,9 +574,16 @@
     <span class="close-x" onclick="closeBarcodeModal()">✕</span>
     <h3>Code-barres à imprimer</h3>
     <div id="barcode-print-zone" class="barcode-print-zone"></div>
-    <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+    <div id="barcode-modal-actions" style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end; align-items:flex-end; flex-wrap:wrap;">
+      <div style="min-width:280px; flex:1;">
+        <label class="small" for="barcode-format">Format d'impression</label>
+        <select id="barcode-format">
+          <option value="a4-portrait-2">A4 portrait – 2 étiquettes / page</option>
+          <option value="a4-paysage-1">A4 paysage – 1 code-barres / page</option>
+        </select>
+      </div>
       <button class="btn btn-ghost" onclick="closeBarcodeModal()">Fermer</button>
-      <button class="btn btn-primary" onclick="window.print()">Imprimer</button>
+      <button class="btn btn-primary" onclick="imprimerDepuisModale()">Imprimer</button>
     </div>
   </div>
 </div>
@@ -676,7 +728,7 @@
       <div class="password-field">
         <input type="password" id="cp-current" autocomplete="current-password">
         <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-current', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
       </div>
     </div>
@@ -686,7 +738,7 @@
       <div class="password-field">
         <input type="password" id="cp-new" autocomplete="new-password">
         <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-new', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
       </div>
     </div>
@@ -696,7 +748,7 @@
       <div class="password-field">
         <input type="password" id="cp-new-confirm" autocomplete="new-password">
         <button type="button" class="eye-btn" onclick="toggleFieldVisibility('cp-new-confirm', this)" aria-label="Afficher le mot de passe">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
       </div>
     </div>
@@ -728,5 +780,7 @@
 <script src="js/14-historique.js"></script>
 <script src="js/15-book-pdf.js"></script>
 <script src="js/16-utilisateurs.js"></script>
+  <!-- Fichier export/import -->
+<script src="js/17-export-import.js"></script>
 </body>
 </html>

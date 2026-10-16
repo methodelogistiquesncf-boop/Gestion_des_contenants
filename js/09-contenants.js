@@ -171,9 +171,11 @@ function lancerImpressionLot(){
   remplirSelectLotCategorie();
   const qteInput = document.getElementById('lot-quantite');
   const titreInput = document.getElementById('lot-titre');
+  const formatSel = document.getElementById('lot-format');
   const btn = document.getElementById('btn-lot-imprimer');
   const quantite = parseInt(qteInput.value, 10);
   const titre = titreInput ? titreInput.value.trim() : '';
+  const format = formatSel ? formatSel.value : 'a4-portrait-2';
   const catSel = document.getElementById('lot-categorie');
   const prefixe = prefixePourCategorieId(catSel ? catSel.value : null);
 
@@ -184,7 +186,7 @@ function lancerImpressionLot(){
 
   setBtnLoading(btn, 'Réservation…');
   reserverLotIdentifiants(quantite, prefixe).then(identifiants=>{
-    imprimerLotCodeBarres(identifiants, true, titre);
+    imprimerLotCodeBarres(identifiants, true, titre, format);
     const premier = identifiants[0], dernierNum = identifiants[identifiants.length-1];
     toast(quantite + " numéro(s) réservé(s) : " + premier + (quantite > 1 ? " → " + dernierNum : ''), 'ok');
   }).catch(err=> toast("Erreur de réservation : " + err.message, 'err'))
