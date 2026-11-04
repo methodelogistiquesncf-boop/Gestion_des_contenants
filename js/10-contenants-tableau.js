@@ -51,13 +51,14 @@ const libelleStatutTexte = statut => ({
   en_service: 'En service', casse: 'Cassé', perdu: 'Usage non conforme', reforme: 'Réformé'
 }[statut] || statut);
 
-  const entetes = ['Identifiant', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];
+  const entetes = ['Identifiant', 'N° GMAO', 'Type', 'Catégorie', 'Statut', 'Emplacement', 'Créé le'];
   const donnees = rows.map(c=>{
     const t = TYPES[c.typeLettre];
     const cat = t && t.categorieId ? CATEGORIES[t.categorieId] : null;
     const emp = c.emplacementId && EMPLACEMENTS[c.emplacementId] ? EMPLACEMENTS[c.emplacementId].nom : '';
     return [
       c.identifiant,
+      c.gmao || '',
       c.typeLettre || '',
       cat ? cat.nom : '',
       libelleStatutTexte(c.statut),
@@ -71,9 +72,10 @@ const libelleStatutTexte = statut => ({
   // Largeurs de colonnes adaptées au contenu
   feuille['!cols'] = [
     { wch: 22 }, // Identifiant
+    { wch: 16 }, // N° GMAO
     { wch: 8 },  // Type
     { wch: 16 }, // Catégorie
-    { wch: 12 }, // Statut
+    { wch: 18 }, // Statut
     { wch: 22 }, // Emplacement
     { wch: 18 }  // Créé le
   ];
@@ -85,17 +87,30 @@ const libelleStatutTexte = statut => ({
   toast(rows.length + " contenant(s) exporté(s).", 'ok');
 }
 
-// Applique les mêmes filtres que renderContenants(), pour partager la
-// logique entre l'affichage à l'écran et l'export CSV.
+/* ===================================================================
+   FILTRES + TRI (logique partagée entre affichage et export)
+   La recherche cherche maintenant dans :
+   - l'identifiant (18 chiffres, insensible à la casse)
+   - le n° GMAO (insensible à la casse et aux espaces via cleGmao)
+   =================================================================== */
 function obtenirContenantsFiltresTries(){
-  const search = (document.getElementById('filter-search').value || '').trim().toLowerCase();
+  const search = (document.getElementById('filter-search').value || '').trim();
   const fStatut = document.getElementById('filter-statut').value;
   const fType = document.getElementById('filter-type').value;
   const fEmp = document.getElementById('filter-emplacement').value;
   const fCategorie = document.getElementById('filter-categorie') ? document.getElementById('filter-categorie').value : '';
 
+  // Pré-calcul pour la recherche (évite de le refaire à chaque ligne)
+  const searchLower = search.toLowerCase();
+  const searchGmao = cleGmao(search); // clé normalisée pour la recherche GMAO
+
   let rows = Object.values(CONTENANTS).filter(c=>{
-    if(search && !c.identifiant.toLowerCase().includes(search)) return false;
+    // Recherche : identifiant OU GMAO
+    if(search){
+      const matchId = c.identifiant.toLowerCase().includes(searchLower);
+      const matchGmao = searchGmao && cleGmao(c.gmao).includes(searchGmao);
+      if(!matchId && !matchGmao) return false;
+    }
     if(fStatut && c.statut !== fStatut) return false;
     if(fType && c.typeLettre !== fType) return false;
     if(fEmp && c.emplacementId !== fEmp) return false;
@@ -118,6 +133,9 @@ function obtenirContenantsFiltresTries(){
   return rows;
 }
 
+/* ===================================================================
+   RENDU DU TABLEAU DES CONTENANTS
+   =================================================================== */
 function renderContenants(){
   const el = document.getElementById('contenants-table');
   const rows = obtenirContenantsFiltresTries();
@@ -139,8 +157,14 @@ function renderContenants(){
     const btnSupprimer = estAdmin
       ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); supprimerContenant('${c.identifiant}')">Supprimer</button>`
       : '';
+    
+    // Ligne GMAO discrète sous l'identifiant (n'apparaît que si le GMAO est renseigné)
+    const gmaoHtml = c.gmao
+      ? `<div class="gmao-sub">GMAO ${echapperHtml(c.gmao)}</div>`
+      : '';
+    
     html += `<tr class="clickable" onclick="ouvrirHistorique('${c.identifiant}')">
-      <td class="mono">${c.identifiant}</td>
+      <td class="mono">${c.identifiant}${gmaoHtml}</td>
       <td>${c.typeLettre}</td>
       <td>${badgeCategorie(t ? t.categorieId : null)}</td>
       <td>${libelleStatut(c.statut)}</td>
@@ -154,4 +178,16 @@ function renderContenants(){
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+/* -------------------------------------------------------------------
+   ÉCHAPPEMENT HTML (pour afficher le GMAO tel quel dans le tableau)
+   Protège contre les caractères spéciaux si le GMAO contient < > & "
+   ------------------------------------------------------------------- */
+function echapperHtml(str){
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
