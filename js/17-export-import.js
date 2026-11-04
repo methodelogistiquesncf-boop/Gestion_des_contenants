@@ -23,7 +23,7 @@ const COLLECTIONS_A_SAUVAGARDER = [
    ------------------------------------------------------------------- */
 function exporterExcelComplet() {
     try {
-        // Feuille 1 : Contenants
+        // Feuille 1 : Contenants (avec colonne N° GMAO)
         const contenantsData = Object.entries(CONTENANTS).map(([id, c]) => {
             const type = TYPES[c.typeLettre];
             const categorie = type && CATEGORIES[type.categorieId];
@@ -31,6 +31,7 @@ function exporterExcelComplet() {
             
             return {
                 'Identifiant': id,
+                'N° GMAO': c.gmao || '',
                 'Type': c.typeLettre || '',
                 'Catégorie': categorie ? categorie.nom : 'Non catégorisé',
                 'Dimensions (L×l×h cm)': type ? `${type.longueur}×${type.largeur}×${type.hauteur}` : '',
@@ -92,7 +93,18 @@ function exporterExcelComplet() {
         const wsUtilisateurs = XLSX.utils.json_to_sheet(utilisateursData);
 
         // Ajustement largeurs colonnes
-        wsContenants['!cols'] = [{wch:20}, {wch:8}, {wch:18}, {wch:18}, {wch:30}, {wch:18}, {wch:15}, {wch:20}, {wch:15}];
+        wsContenants['!cols'] = [
+            {wch: 20}, // Identifiant
+            {wch: 16}, // N° GMAO
+            {wch: 8},  // Type
+            {wch: 18}, // Catégorie
+            {wch: 18}, // Dimensions
+            {wch: 30}, // Description type
+            {wch: 18}, // Emplacement
+            {wch: 15}, // Statut
+            {wch: 20}, // Date création
+            {wch: 15}  // Nombre mouvements
+        ];
         wsTypes['!cols'] = [{wch:8}, {wch:12}, {wch:12}, {wch:12}, {wch:40}, {wch:18}, {wch:10}];
         wsEmplacements['!cols'] = [{wch:20}, {wch:25}, {wch:40}];
         wsCategories['!cols'] = [{wch:20}, {wch:25}, {wch:12}, {wch:15}];
@@ -114,6 +126,278 @@ function exporterExcelComplet() {
         toast("Erreur export Excel : " + err.message, 'err');
         console.error(err);
     }
+}
+
+/* ===================================================================
+   IMPORT GMAO (CORRESPONDANCE) — BACKFILL DU PARC
+   -------------------------------------------------------------------
+   Lit un fichier Excel 2 colonnes : "Identifiant" + "N° GMAO"
+   et associe le n° GMAO au contenant existant, sans rien écraser
+   d'autre (historique, statut, emplacement, etc.).
+   
+   Règles :
+   - Format GMAO libre (juste trim).
+   - Unicité stricte sur TOUT le parc (y compris réformés).
+   - Aucune écriture silencieuse : rapport complet en fin de traitement.
+   - Écriture par batch de 500 (limite Firestore).
+   - Entrée d'historique "gmao_modification" ajoutée à chaque mise à jour.
+   =================================================================== */
+function importerGmaoExcel() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel';
+    
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const feuille = wb.Sheets[wb.SheetNames[0]];
+                const lignes = XLSX.utils.sheet_to_json(feuille, { defval: '' });
+                
+                if (lignes.length === 0) {
+                    toast("Fichier vide ou aucune donnée lisible.", 'err');
+                    return;
+                }
+                
+                // Identifier les colonnes (insensible à la casse et aux espaces)
+                const premiereLigne = lignes[0];
+                let colIdentifiant = null, colGmao = null;
+                for (const cle of Object.keys(premiereLigne)) {
+                    const n = (cle || '').toLowerCase().replace(/\s+/g, '');
+                    if (n === 'identifiant' || n === 'id' || n === 'identifiantunique') colIdentifiant = cle;
+                    if (n.includes('gmao') || n === 'numerogmao' || n === 'numgmao' || n === 'codegmao') colGmao = cle;
+                }
+                
+                if (!colIdentifiant || !colGmao) {
+                    toast("Colonnes introuvables. Le fichier doit contenir au moins « Identifiant » et « N° GMAO ».", 'err');
+                    return;
+                }
+                
+                toast("Analyse du fichier en cours... (" + lignes.length + " lignes)", 'info');
+                
+                await traiterImportGmao(lignes, colIdentifiant, colGmao);
+                
+            } catch (err) {
+                toast("Erreur lecture fichier : " + err.message, 'err');
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    
+    input.click();
+}
+
+/* -------------------------------------------------------------------
+   TRAITEMENT EFFECTIF DE L'IMPORT GMAO
+   ------------------------------------------------------------------- */
+async function traiterImportGmao(lignes, colIdentifiant, colGmao) {
+    const rapport = {
+        misAJour: [],
+        identiques: [],      // GMAO identique à l'existant (pas d'écriture)
+        introuvables: [],    // Identifiant 18 chiffres inconnu
+        doublons: [],        // GMAO déjà porté par un autre contenant
+        vides: [],           // Identifiant vide dans le fichier
+        total: lignes.length
+    };
+    
+    // Pré-calcul de la map des GMAO déjà utilisés (pour détection doublons)
+    // clé = cleGmao(valeur), valeur = identifiant du contenant porteur
+    const gmaoUtilises = {};
+    for (const id in CONTENANTS) {
+        const g = CONTENANTS[id].gmao;
+        if (g) gmaoUtilises[cleGmao(g)] = id;
+    }
+    
+    const now = firebase.firestore.Timestamp.now();
+    const utilisateur = obtenirNomUtilisateurPourHistorique();
+    
+    // Liste des opérations à effectuer
+    const operations = [];
+    
+    for (const ligne of lignes) {
+        const id = String(ligne[colIdentifiant] || '').trim();
+        const gmaoBrut = String(ligne[colGmao] || '').trim();
+        
+        // Ligne vide
+        if (!id) {
+            rapport.vides.push(ligne);
+            continue;
+        }
+        
+        // Identifiant inconnu
+        if (!CONTENANTS[id]) {
+            rapport.introuvables.push({ id, gmao: gmaoBrut });
+            continue;
+        }
+        
+        const contenant = CONTENANTS[id];
+        const ancienGmao = contenant.gmao || '';
+        
+        // Valeur inchangée (normalisée)
+        if (cleGmao(gmaoBrut) === cleGmao(ancienGmao)) {
+            rapport.identiques.push({ id, gmao: gmaoBrut });
+            continue;
+        }
+        
+        // Doublon : ce GMAO est déjà porté par un autre contenant
+        if (gmaoBrut) {
+            const cle = cleGmao(gmaoBrut);
+            if (gmaoUtilises[cle] && gmaoUtilises[cle] !== id) {
+                rapport.doublons.push({ id, gmao: gmaoBrut, portePar: gmaoUtilises[cle] });
+                continue;
+            }
+            // Marquer comme utilisé pour les lignes suivantes du fichier
+            gmaoUtilises[cle] = id;
+        }
+        
+        // Opération valide
+        operations.push({ id, ancienGmao, nouveauGmao: gmaoBrut });
+    }
+    
+    // S'il n'y a rien à écrire
+    if (operations.length === 0) {
+        afficherRapportImportGmao(rapport);
+        return;
+    }
+    
+    // Confirmation
+    if (!confirm(
+        "Importer " + operations.length + " n° GMAO ?\n\n" +
+        "• À mettre à jour : " + operations.length + "\n" +
+        "• Identifiants introuvables : " + rapport.introuvables.length + "\n" +
+        "• Doublons refusés : " + rapport.doublons.length + "\n" +
+        "• Valeurs inchangées : " + rapport.identiques.length + "\n" +
+        "• Lignes vides : " + rapport.vides.length + "\n\n" +
+        "Aucune autre donnée ne sera modifiée. Continuer ?"
+    )) {
+        toast("Import annulé.", 'info');
+        return;
+    }
+    
+    // Écriture par batch de 500
+    try {
+        for (let i = 0; i < operations.length; i += 500) {
+            const batch = db.batch();
+            const chunk = operations.slice(i, i + 500);
+            
+            for (const op of chunk) {
+                const ref = db.collection('contenants').doc(op.id);
+                
+                // Lecture des données actuelles pour préserver l'historique
+                const doc = await ref.get();
+                const data = doc.exists ? doc.data() : {};
+                const hist = (data.historique || []).slice();
+                hist.push({
+                    date: now,
+                    action: 'gmao_modification',
+                    ancienneValeur: op.ancienGmao,
+                    nouvelleValeur: op.nouveauGmao,
+                    commentaire: 'Import de correspondance GMAO',
+                    utilisateur: utilisateur
+                });
+                
+                batch.update(ref, {
+                    gmao: op.nouveauGmao || null,
+                    historique: hist
+                });
+                
+                rapport.misAJour.push({ id: op.id, ancienGmao: op.ancienGmao, nouveauGmao: op.nouveauGmao });
+            }
+            
+            await batch.commit();
+        }
+        
+        afficherRapportImportGmao(rapport);
+        
+    } catch (err) {
+        toast("❌ Erreur pendant l'import : " + err.message, 'err');
+        console.error(err);
+    }
+}
+
+/* -------------------------------------------------------------------
+   AFFICHAGE DU RAPPORT D'IMPORT GMAO
+   ------------------------------------------------------------------- */
+function afficherRapportImportGmao(rapport) {
+    const lignes = [];
+    lignes.push("═══════════════════════════════════════");
+    lignes.push("     RAPPORT D'IMPORT GMAO");
+    lignes.push("═══════════════════════════════════════");
+    lignes.push("");
+    lignes.push("✅ Mis à jour : " + rapport.misAJour.length);
+    lignes.push("➖ Inchangés   : " + rapport.identiques.length);
+    lignes.push("❌ Introuvables : " + rapport.introuvables.length);
+    lignes.push("⚠️ Doublons    : " + rapport.doublons.length);
+    lignes.push("○ Lignes vides : " + rapport.vides.length);
+    lignes.push("");
+    lignes.push("Total traité : " + rapport.total + " lignes");
+    
+    if (rapport.misAJour.length > 0) {
+        const msgType = rapport.misAJour.length > 0 ? 'ok' : 'info';
+        toast(lignes.join('\n'), msgType, 12000);
+        
+        // Téléchargement d'un fichier récap (CSV) pour archivage
+        telechargerRecapImportGmao(rapport);
+    } else {
+        toast(lignes.join('\n'), 'info', 8000);
+    }
+}
+
+/* -------------------------------------------------------------------
+   TÉLÉCHARGEMENT DU RÉCAP D'IMPORT (fichier CSV d'archivage)
+   Utile pour garder une trace de ce qui a été importé ou refusé.
+   ------------------------------------------------------------------- */
+function telechargerRecapImportGmao(rapport) {
+    const csvLines = [];
+    csvLines.push('Statut;Identifiant;N° GMAO (saisi);N° GMAO existant;Porté par');
+    
+    rapport.misAJour.forEach(op => {
+        csvLines.push('mis_a_jour;' + op.id + ';"' + (op.nouveauGmao || '').replace(/"/g, '""') + '";"' + (op.ancienGmao || '').replace(/"/g, '""') + '";');
+    });
+    rapport.identiques.forEach(op => {
+        csvLines.push('inchange;' + op.id + ';"' + op.gmao.replace(/"/g, '""') + '";"' + op.gmao.replace(/"/g, '""') + '";');
+    });
+    rapport.introuvables.forEach(op => {
+        csvLines.push('introuvable;' + op.id + ';"' + op.gmao.replace(/"/g, '""') + '";;');
+    });
+    rapport.doublons.forEach(op => {
+        csvLines.push('doublon;' + op.id + ';"' + op.gmao.replace(/"/g, '""') + '";;' + op.portePar);
+    });
+    rapport.vides.forEach(() => {
+        csvLines.push('ligne_vide;;;;');
+    });
+    
+    const blob = new Blob(['\ufeff' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'recap-import-gmao-' + date + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* -------------------------------------------------------------------
+   TÉLÉCHARGER UN MODÈLE VIDE D'IMPORT GMAO
+   Pratique pour préparer la correspondance depuis le référentiel GMAO.
+   ------------------------------------------------------------------- */
+function telechargerModeleImportGmao() {
+    const wb = XLSX.utils.book_new();
+    const data = [
+        { 'Identifiant': '052030000000000001', 'N° GMAO': 'EQ-1234' },
+        { 'Identifiant': '052030000000000002', 'N° GMAO': '' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 22 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Correspondance GMAO');
+    XLSX.writeFile(wb, 'modele-import-gmao.xlsx');
+    toast("Modèle téléchargé. Remplissez-le puis réimportez-le.", 'ok');
 }
 
 /* -------------------------------------------------------------------
