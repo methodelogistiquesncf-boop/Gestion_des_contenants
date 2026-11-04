@@ -201,6 +201,32 @@ function estIdentifiantAuto(id){
 }
 
 /* ===================================================================
+   N° GMAO — HELPERS
+   Clé de recherche de secours pour retrouver un contenant dont
+   l'étiquette 18 chiffres est déchirée ou illisible.
+   =================================================================== */
+
+/* Clé de comparaison pour l'unicité et la recherche :
+   majuscules + suppression des espaces. Permet de détecter les doublons
+   même si l'utilisateur saisit "EQ-1234" ou "eq 1234". La valeur stockée
+   dans Firestore reste intacte (ce que l'utilisateur a tapé). */
+function cleGmao(v){
+  return (v || '').toUpperCase().replace(/\s+/g, '');
+}
+
+/* Vérifie si un n° GMAO est déjà porté par un autre contenant.
+   Retourne l'identifiant du contenant porteur si doublon, sinon null.
+   Parcourt CONTENANTS en mémoire : zéro requête Firestore. */
+function gmaoDejaUtilise(valeur, saufIdentifiant){
+  const cle = cleGmao(valeur);
+  if(!cle) return null; // valeur vide = pas de conflit
+  for(const id in CONTENANTS){
+    if(id !== saufIdentifiant && cleGmao(CONTENANTS[id].gmao) === cle) return id;
+  }
+  return null;
+}
+
+/* ===================================================================
    COMPTEUR MANUEL (onglet Utilisateurs — administrateur)
    =================================================================== */
 function rafraichirAffichageCompteur(){
@@ -281,11 +307,23 @@ function supprimerContenant(identifiant){
    =================================================================== */
 function creerContenant(btn){
   const idInput = document.getElementById('new-id');
+  const gmaoInput = document.getElementById('new-gmao');
   const identifiant = idInput.value.trim();
   const typeLettre = document.getElementById('new-type').value;
+  const gmao = gmaoInput ? gmaoInput.value.trim() : '';
 
   if(!identifiant){ toast("Scanne, saisis ou génère un identifiant.", 'err'); return; }
   if(!typeLettre){ toast("Sélectionne un type de contenant.", 'err'); return; }
+
+  // Contrôle d'unicité du n° GMAO (si renseigné)
+  if(gmao){
+    const doublon = gmaoDejaUtilise(gmao, null);
+    if(doublon){
+      toast("Ce n° GMAO est déjà porté par le contenant " + doublon + ".", 'err');
+      gmaoInput.focus();
+      return;
+    }
+  }
 
   const now = firebase.firestore.Timestamp.now();
   const ref = db.collection('contenants').doc(identifiant);
@@ -301,6 +339,7 @@ function creerContenant(btn){
       tx.set(ref, {
         identifiant, typeLettre, statut: 'en_service',
         emplacementId: null,
+        gmao: gmao || null,
         dateCreation: now, dateCasse: null, dateReparation: null, datePerte: null,
         photoCasse: null, photoPerte: null,
         historique: [{
@@ -319,11 +358,74 @@ function creerContenant(btn){
   }).then(()=>{
     toast("Contenant " + identifiant + " enregistré.", 'ok');
     idInput.value = '';
+    if(gmaoInput) gmaoInput.value = '';
     idInput.focus();
   }).catch(err=>{
     if(err.message === 'DUPLICATE') toast("Cet identifiant est déjà enregistré.", 'err');
     else toast("Erreur : " + err.message, 'err');
   }).finally(()=> clearBtnLoading(btn));
+}
+
+/* ===================================================================
+   MODIFICATION DU N° GMAO (depuis la fiche du contenant)
+   =================================================================== */
+function modifierGmao(identifiant, btn){
+  const input = document.getElementById('edit-gmao-input');
+  if(!input) return;
+  
+  const nouvelleValeur = input.value.trim();
+  const ancienneValeur = CONTENANTS[identifiant] ? CONTENANTS[identifiant].gmao || '' : '';
+  
+  // Si aucune modification réelle
+  if(cleGmao(nouvelleValeur) === cleGmao(ancienneValeur)){
+    toast("Aucune modification détectée.", 'info');
+    return;
+  }
+  
+  // Contrôle d'unicité (si nouvelle valeur non vide)
+  if(nouvelleValeur){
+    const doublon = gmaoDejaUtilise(nouvelleValeur, identifiant);
+    if(doublon){
+      toast("Ce n° GMAO est déjà porté par le contenant " + doublon + ".", 'err');
+      input.focus();
+      return;
+    }
+  }
+  
+  setBtnLoading(btn, 'Enregistrement…');
+  
+  const now = firebase.firestore.Timestamp.now();
+  const ref = db.collection('contenants').doc(identifiant);
+  
+  ref.get().then(doc=>{
+    if(!doc.exists){
+      toast("Contenant introuvable.", 'err');
+      return;
+    }
+    
+    const data = doc.data();
+    const nouvelHistorique = (data.historique || []).slice();
+    nouvelHistorique.push({
+      date: now,
+      action: 'gmao_modification',
+      ancienneValeur: ancienneValeur,
+      nouvelleValeur: nouvelleValeur,
+      commentaire: 'Modification du n° GMAO',
+      utilisateur: obtenirNomUtilisateurPourHistorique()
+    });
+    
+    return ref.update({
+      gmao: nouvelleValeur || null,
+      historique: nouvelHistorique
+    });
+  }).then(()=>{
+    toast("N° GMAO mis à jour.", 'ok');
+    // La modale sera rafraîchie par le listener Firestore
+  }).catch(err=>{
+    toast("Erreur : " + err.message, 'err');
+  }).finally(()=>{
+    clearBtnLoading(btn);
+  });
 }
 
 /* --- Support douchette code-barres (validation sur "Entrée") --- */
@@ -332,6 +434,11 @@ document.getElementById('new-id').addEventListener('keydown', e=>{
 });
 document.getElementById('lookup-id').addEventListener('keydown', e=>{
   if(e.key === 'Enter'){ e.preventDefault(); lookupContenant(); }
+});
+
+// Support validation GMAO sur Entrée (pratique pour la saisie rapide)
+document.getElementById('new-gmao').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); creerContenant(document.getElementById('btn-creer-contenant')); }
 });
 
 /* ===================================================================

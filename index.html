@@ -138,6 +138,10 @@
             <label class="small" for="new-type">Type</label>
             <select id="new-type"></select>
           </div>
+          <div style="flex:1; min-width:160px;">
+            <label class="small" for="new-gmao">N° GMAO <span style="font-weight:normal; color:var(--ink-soft);">(facultatif)</span></label>
+            <input type="text" id="new-gmao" placeholder="Ex: EQ-1234" maxlength="40" autocomplete="off">
+          </div>
           <div style="flex:0;">
             <button class="btn btn-primary" id="btn-creer-contenant" onclick="creerContenant(this)">Ajouter</button>
           </div>
@@ -148,7 +152,7 @@
         <h2>Liste des contenants</h2>
         <p class="sub">Recherche et filtre l'ensemble des contenants suivis.</p>
         <div class="toolbar">
-          <input type="text" id="filter-search" placeholder="Rechercher un identifiant…" oninput="renderContenants()">
+          <input type="text" id="filter-search" placeholder="Rechercher un identifiant ou un n° GMAO…" oninput="renderContenants()">
           <select id="filter-statut" onchange="renderContenants()">
             <option value="">Tous les statuts</option>
             <option value="en_service">En service</option>
@@ -359,7 +363,7 @@
       </div>
     </section>
 
-        <!-- ---------- VUE : AIDE ---------- -->
+    <!-- ---------- VUE : AIDE ---------- -->
     <section id="v-aide" class="view">
 
       <div class="panel">
@@ -380,8 +384,9 @@
         <p class="sub">Enregistrer un nouveau contenant et consulter la liste complète du parc.</p>
         <ul>
           <li><strong>Enregistrer un contenant</strong> : scanne l'identifiant avec la douchette (validation automatique à la lecture), saisis-le à la main, ou clique sur « Générer » pour créer automatiquement un identifiant unique <strong>dans la série de la catégorie du type choisi</strong>, puis clique sur « Ajouter ».</li>
-          <li><strong>Liste des contenants</strong> : recherche par identifiant et filtre par statut (En service, Cassé, <strong>Perdu</strong>, Réformé), type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
-          <li>Cliquer sur une ligne du tableau ouvre l'<strong>historique complet</strong> du contenant (création, casses, réparations, <strong>pertes</strong>, <strong>réapparitions</strong>, réformes, avec date, auteur de l'action, commentaire et photo éventuelle).</li>
+          <li><strong>N° GMAO (facultatif)</strong> : pont numérique vers votre GMAO. Saisi à la création ou plus tard depuis la fiche du contenant. Chaque n° GMAO doit être unique dans tout le parc (y compris pour les contenants réformés), pour éviter toute ambiguïté en cas d'étiquette 18 chiffres déchirée. Il <strong>n'apparaît pas sur l'étiquette imprimée</strong> ; il sert uniquement de clé de recherche de secours.</li>
+          <li><strong>Liste des contenants</strong> : recherche par identifiant ou n° GMAO et filtre par statut (En service, Cassé, <strong>Perdu</strong>, Réformé), type, emplacement ou catégorie. Les colonnes sont triables en cliquant sur leur en-tête.</li>
+          <li>Cliquer sur une ligne du tableau ouvre la <strong>fiche complète</strong> du contenant (historique complet, modification du n° GMAO, réimpression de l'étiquette, etc.).</li>
           <li>Le bouton <strong>« Code-barres »</strong> d'une ligne imprime directement l'étiquette de ce contenant.</li>
           <li>Le bouton <strong>« Exporter Excel »</strong> exporte la liste telle qu'elle est affichée à l'écran (filtrée et triée).</li>
           <li>Pour les comptes <strong>Administrateur</strong> : un bouton <strong>« Supprimer »</strong> apparaît sur chaque ligne pour effacer définitivement un contenant (et son historique).</li>
@@ -471,6 +476,7 @@
           <li>Les identifiants peuvent toujours être saisis manuellement si la douchette n'est pas disponible.</li>
           <li>Un numéro supprimé ou réservé n'est <strong>jamais réattribué</strong> : les compteurs ne font qu'avancer, ce qui évite toute confusion avec un contenant physique portant encore l'ancienne étiquette.</li>
           <li>La suppression d'un contenant ou la modification d'un compteur (réservées aux administrateurs) sont <strong>définitives et irréversibles</strong>.</li>
+          <li>Si l'étiquette à 18 chiffres est déchirée ou illisible, le <strong>n° GMAO</strong> (s'il est renseigné) permet de retrouver le contenant via la recherche, puis de réimprimer l'étiquette depuis sa fiche.</li>
         </ul>
       </div>
 
@@ -503,7 +509,7 @@
           <div class="export-card">
             <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--text);">📊 Export Excel</h3>
             <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">
-              Rapport lisible avec 5 feuilles : Contenants, Types, Emplacements, Catégories, Utilisateurs
+              Rapport lisible avec 5 feuilles : <strong>Contenants (avec colonne N° GMAO)</strong>, Types, Emplacements, Catégories, Utilisateurs
             </p>
             <button class="btn btn-secondary" onclick="exporterExcelComplet()" style="width: 100%;">
               Télécharger le rapport Excel
@@ -529,6 +535,17 @@
             </p>
             <button class="btn btn-danger" onclick="importerJson()" style="width: 100%;">
               Choisir un fichier JSON
+            </button>
+          </div>
+
+          <!-- Import correspondance GMAO -->
+          <div class="export-card">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--steel);">🔗 Import GMAO (correspondance)</h3>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">
+              Fichier Excel 2 colonnes : <code>Identifiant</code> + <code>N° GMAO</code>. Associe un n° GMAO aux contenants existants, sans rien écraser d'autre.
+            </p>
+            <button class="btn btn-secondary" onclick="importerGmaoExcel()" style="width: 100%;">
+              Choisir un fichier Excel
             </button>
           </div>
           
@@ -676,7 +693,7 @@
   </div>
 </div>
 
-  <!-- ---------- MODALE ÉDITION EMPLACEMENT ---------- -->
+<!-- ---------- MODALE ÉDITION EMPLACEMENT ---------- -->
 <div class="modal-backdrop" id="modal-edit-emplacement">
   <div class="modal" style="max-width:420px;">
     <span class="close-x" onclick="closeEditEmplacementModal()">✕</span>
