@@ -528,3 +528,53 @@ body[data-print-format="a4-portrait-2"] .barcode-label {
 .export-card:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
+
+/* ===================================================================
+   GMAO — 2ᵉ LIGNE DISCRÈTE DANS LE TABLEAU
+   Affichée sous l'identifiant, style "fiche technique"
+   =================================================================== */
+.gmao-sub{
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  font-family: var(--mono);
+  letter-spacing: 0.3px;
+  opacity: 0.85;
+}
+.gmao-sub::before{
+  content: '🔗 ';
+  opacity: 0.6;
+}
+
+/* Bandeau de la fiche contenant (modale historique transformée) */
+.fiche-bandeau{
+  background: var(--bg-grid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.fiche-ligne{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+.fiche-champ{
+  min-width: 0;
+}
+.fiche-label{
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+  font-weight: 600;
+}
+.fiche-section-gmao{
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.fiche-section{
+  margin-top: 8px;
+}
